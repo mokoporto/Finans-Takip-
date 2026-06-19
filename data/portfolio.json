@@ -1,0 +1,47 @@
+[
+  {
+    "id": "fed0d781-e36f-4a16-8887-e8bb2483e62b",
+    "symbol": "ATATP",
+    "market": "bist",
+    "name": "yazılım",
+    "quantity": 3592.0,
+    "avg_price": 234.56,
+    "purchase_date": null
+  },
+  {
+    "id": "0a287411-7198-4cf1-801c-1667e323c778",
+    "symbol": "GTA",
+    "market": "fund",
+    "name": "Altın",
+    "quantity": 223443.0,
+    "avg_price": 1.566,
+    "purchase_date": null
+  },
+  {
+    "id": "5e2e7669-582e-43a4-8e87-9c0c1bacf0a4",
+    "symbol": "TLY",
+    "market": "fund",
+    "name": "TLY",
+    "quantity": 229.0,
+    "avg_price": 5258.91,
+    "purchase_date": null
+  },
+  {
+    "id": "fcf385e7-321b-4740-b671-37fd6171a88b",
+    "symbol": "PBR",
+    "market": "fund",
+    "name": "PBR",
+    "quantity": 239740.0,
+    "avg_price": 4.17,
+    "purchase_date": null
+  },
+  {
+    "id": "15cacb19-b68a-4880-b9f8-7c31fd8cabdd",
+    "symbol": "DFI",
+    "market": "fund",
+    "name": "DFI",
+    "quantity": 270166.0,
+    "avg_price": 3.81,
+    "purchase_date": null
+  }
+]

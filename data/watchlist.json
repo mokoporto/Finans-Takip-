@@ -1,0 +1,32 @@
+[
+  {
+    "symbol": "TLY",
+    "market": "fund",
+    "name": "TLY",
+    "exchange": "btcturk"
+  },
+  {
+    "symbol": "PBR",
+    "market": "fund",
+    "name": "PBR",
+    "exchange": "btcturk"
+  },
+  {
+    "symbol": "DFI",
+    "market": "fund",
+    "name": "DFI",
+    "exchange": "btcturk"
+  },
+  {
+    "symbol": "GTA",
+    "market": "fund",
+    "name": "GTA",
+    "exchange": "btcturk"
+  },
+  {
+    "symbol": "ATATP",
+    "market": "bist",
+    "name": "ATATP",
+    "exchange": "btcturk"
+  }
+]
