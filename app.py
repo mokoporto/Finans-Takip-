@@ -533,11 +533,18 @@ def _extract_price(w: dict, results: dict) -> dict:
                 d.get("changePercent") or d.get("change_pct") or d.get("gunlukDegisim")
             ) or _change_from_hist(results.get(f"hist_{sym}", {}))
             currency = d.get("currency", "TRY" if market == "bist" else "USD")
+            # Son fiyat saati: tarihsel verinin son barının tarihi + fetch saati
+            import datetime as _dt
+            hist_bars = results.get(f"hist_{sym}", {}).get("data", [])
+            last_bar_date = hist_bars[-1].get("date", "") if hist_bars else ""
+            fetch_time = _dt.datetime.now().strftime("%H:%M")
+            price_time = f"{last_bar_date[:10]} {fetch_time}" if last_bar_date else fetch_time
             return {
                 "price": price,
                 "change_pct": chg,
                 "currency": currency,
                 "name": d.get("longName") or d.get("shortName") or d.get("name") or w["name"],
+                "price_time": price_time,
             }
         if market == "fund":
             raw = results.get(f"fund_{sym}", {})
@@ -569,11 +576,17 @@ def _extract_price(w: dict, results: dict) -> dict:
             daily = _safe_float(fd.get("daily_return") or fd.get("gunluk_getiri"))
             # Fallback fiyat kullandıysak veya daily_return -100 ise değişim gösterme
             change_pct = None if (used_fallback or daily == -100) else daily
+            # Fon fiyat tarihi: recent_prices[0].date veya fallback fiyatın tarihi
+            recent_list = raw.get("recent_prices", [])
+            price_date = None
+            if recent_list:
+                price_date = recent_list[0].get("date")  # "2026-06-19"
             return {
                 "price": price,
                 "change_pct": change_pct,
                 "currency": "TRY",
                 "name": fd.get("name") or fd.get("fon_adi") or w["name"],
+                "price_date": price_date,
             }
         if market in ("crypto_tr", "crypto_global"):
             key = f"ctr_{sym}" if market == "crypto_tr" else f"cgl_{sym}"

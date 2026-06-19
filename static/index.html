@@ -121,7 +121,6 @@ input::placeholder { color: #334155; }
     <button class="tab-btn active" id="tab-portfolio"   onclick="showTab('portfolio')">İzleme Listesi</button>
     <button class="tab-btn"        id="tab-myportfolio" onclick="showTab('myportfolio')">📈 Portföyüm</button>
     <button class="tab-btn"        id="tab-screener"    onclick="showTab('screener')">Hisse Tarayıcı</button>
-    <button class="tab-btn"        id="tab-favorites"   onclick="showTab('favorites')">Analist Favorileri</button>
     <button class="tab-btn"        id="tab-scanner"     onclick="showTab('scanner')">Teknik Tarayıcı</button>
   </div>
 </nav>
@@ -189,20 +188,6 @@ input::placeholder { color: #334155; }
     </div>
   </div>
 
-  <!-- ── FAVORITES TAB ── -->
-  <div id="content-favorites" class="hidden fade-in">
-    <div class="card p-5 mb-5">
-      <h2 class="font-bold text-lg mb-1">Analist Favorileri</h2>
-      <p class="text-xs text-slate-500 mb-4">Kurumsal analistlerin Güçlü Al / Al konsensüs oranına göre sıralanmış hisseler</p>
-      <div class="flex gap-3 flex-wrap">
-        <button onclick="loadFavorites('us')"   class="btn-primary">🇺🇸 ABD — Güçlü Al Konsensüsü</button>
-        <button onclick="loadFavorites('bist')" class="btn-green">🇹🇷 BIST — Büyük Ölçekli Değer</button>
-      </div>
-    </div>
-    <div id="favorites-out">
-      <div class="text-center py-16 text-slate-500">Yukarıdaki butonlarla yükleyin</div>
-    </div>
-  </div>
 
   <!-- ── SCANNER TAB ── -->
   <div id="content-scanner" class="hidden fade-in">
@@ -475,7 +460,7 @@ async function init() {
 
 // ─────────────────────────────── TABS ──────────────────────────────
 function showTab(id) {
-  ['portfolio','myportfolio','screener','favorites','scanner'].forEach(t => {
+  ['portfolio','myportfolio','screener','scanner'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle('active', t === id);
     document.getElementById(`content-${t}`).classList.toggle('hidden', t !== id);
   });
@@ -547,6 +532,16 @@ function makeCard(a) {
   const priceStr = a.price != null ? fmtPrice(a.price, a.currency) : '---';
   const badge = mktBadge(a.market);
 
+  // Tarih/saat etiketi
+  let timeLabel = '';
+  if (a.market === 'fund' && a.price_date) {
+    const d = new Date(a.price_date);
+    const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+    timeLabel = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  } else if ((a.market === 'bist' || a.market === 'us') && a.price_time) {
+    timeLabel = a.price_time.includes(' ') ? a.price_time.split(' ')[1] : a.price_time;
+  }
+
   card.innerHTML = `
     <div class="flex justify-between items-start mb-3">
       <div class="min-w-0">
@@ -557,7 +552,8 @@ function makeCard(a) {
     </div>
     <div class="text-2xl font-black mb-0.5">${priceStr}</div>
     <div class="text-sm font-semibold ${chgClass}">${chgStr}</div>
-    <div class="mt-3 flex justify-end">
+    <div class="mt-3 flex justify-between items-center">
+      ${timeLabel ? `<span class="text-xs text-slate-600">${timeLabel}</span>` : '<span></span>'}
       <button onclick="event.stopPropagation();removeAsset('${a.symbol}','${a.market}')"
         class="text-slate-600 hover:text-red-400 text-xs p-1 transition-colors">✕</button>
     </div>
@@ -1789,105 +1785,6 @@ async function runScreener() {
   } catch (e) { out.innerHTML = `<div class="text-red-400 text-center py-12">Hata: ${e.message}</div>`; }
 }
 
-async function loadFavorites(mkt) {
-  const out = document.getElementById('favorites-out');
-  out.innerHTML = '<div class="text-center py-12 text-slate-500">Analist verileri çekiliyor… <span class="inline-block spin">⟳</span></div>';
-  try {
-    const r = await fetch(`/api/screener/analyst-favorites?market=${mkt}`);
-    const d = await r.json();
-    out.innerHTML = renderAnalystFavorites(d, mkt);
-  } catch (e) { out.innerHTML = `<div class="text-red-400 text-center py-12">Hata: ${e.message}</div>`; }
-}
-
-function renderAnalystFavorites(data, mkt) {
-  const list = Array.isArray(data) ? data : extractList(data);
-  if (!list.length) return `<div class="card p-8 text-center text-slate-500">Sonuç bulunamadı</div>`;
-
-  const isUS = mkt === 'us';
-  const rows = list.map((s, i) => {
-    const sym  = (s.symbol || '').toUpperCase();
-    const name = s.name || sym;
-    const price = s.price ?? s.regularMarketPrice ?? s.currentPrice;
-    const chg   = s.change_percent ?? s.change;
-    const pe    = s.pe_ratio ?? s.trailingPE;
-    const chgC  = chg == null ? '' : chg > 0 ? 'pos' : chg < 0 ? 'neg' : 'neu';
-
-    let analystCol = '';
-    if (isUS) {
-      const sb    = s._strong_buy ?? 0;
-      const b     = s._buy ?? 0;
-      const h     = s._hold ?? 0;
-      const sell  = s._sell ?? 0;
-      const total = s._total_analysts ?? 0;
-      const cons  = (s._consensus || s.recommendation || '').toString();
-      const target = s._mean_target;
-      const upside = price && target ? ((target - price) / price * 100) : null;
-
-      const consColor = cons.toLowerCase().includes('strong buy') ? '#4ade80'
-                      : cons.toLowerCase().includes('buy')        ? '#86efac'
-                      : cons.toLowerCase().includes('hold')       ? '#fbbf24'
-                      : cons.toLowerCase().includes('sell')       ? '#f87171' : '#94a3b8';
-      const bar = total > 0 ? `<div style="display:flex;gap:1px;height:4px;border-radius:2px;overflow:hidden;margin-top:3px">
-        <div style="width:${sb/total*100}%;background:#4ade80"></div>
-        <div style="width:${b/total*100}%;background:#86efac"></div>
-        <div style="width:${h/total*100}%;background:#fbbf24"></div>
-        <div style="width:${sell/total*100}%;background:#f87171"></div>
-      </div>` : '';
-      analystCol = `<td class="py-2.5 px-3 text-center" style="min-width:130px">
-        <div style="font-size:.72rem;font-weight:600;color:${consColor}">${cons || '--'}</div>
-        <div style="font-size:.65rem;color:#64748b">${total} analist</div>
-        ${bar}
-        ${upside != null ? `<div style="font-size:.65rem;color:${upside>0?'#4ade80':'#f87171'};margin-top:2px">Hedef: ${fmt(target,2)} (${upside>0?'+':''}${fmt(upside,1)}%)</div>` : ''}
-      </td>`;
-    } else {
-      const mcap = s.market_cap;
-      analystCol = `<td class="py-2.5 px-3 text-center text-xs text-slate-400">${mcap ? fmtBig(mcap) : '--'}</td>`;
-    }
-
-    const rankBadge = i < 3
-      ? `<span style="font-size:.65rem;padding:1px 5px;border-radius:9px;background:${i===0?'#854d0e':i===1?'#374151':'#1e2d45'};color:${i===0?'#fcd34d':i===1?'#d1d5db':'#94a3b8'}">${i===0?'🥇':i===1?'🥈':'🥉'}</span> `
-      : `<span style="font-size:.65rem;color:#475569">${i+1}.</span> `;
-
-    return `<tr class="sr-row" onclick="quickAddFromTable('${esc(sym)}','${esc(name.substring(0,60))}','${mkt}')">
-      <td class="py-2.5 px-4 font-bold text-sm">${rankBadge}${sym}</td>
-      <td class="py-2.5 px-4 text-slate-400 text-xs max-w-[150px] truncate">${name}</td>
-      <td class="py-2.5 px-4 text-right font-semibold text-sm">${price != null ? fmt(price,2) : '--'}</td>
-      <td class="py-2.5 px-4 text-right text-sm ${chgC}">${chg != null ? `${chg>0?'+':''}${fmt(chg,2)}%` : '--'}</td>
-      <td class="py-2.5 px-4 text-right text-slate-400 text-xs">${pe != null ? fmt(pe,1) : '--'}</td>
-      ${analystCol}
-      <td class="py-2.5 px-4 text-center">
-        <button onclick="event.stopPropagation();quickAddFromTable('${esc(sym)}','${esc(name.substring(0,60))}','${mkt}')"
-          class="text-xs px-2 py-0.5 rounded" style="background:#1d4ed820;color:#60a5fa">+ Ekle</button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  const analystHeader = isUS
-    ? '<th class="py-2.5 px-3 text-center font-medium">Analist Konsensüsü</th>'
-    : '<th class="py-2.5 px-3 text-center font-medium">Piyasa Değeri</th>';
-
-  return `<div class="card overflow-hidden">
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr style="border-bottom:1px solid #1e2d45;background:#060c16" class="text-xs text-slate-500">
-            <th class="py-2.5 px-4 text-left font-medium">Sıra / Sembol</th>
-            <th class="py-2.5 px-4 text-left font-medium">İsim</th>
-            <th class="py-2.5 px-4 text-right font-medium">Fiyat</th>
-            <th class="py-2.5 px-4 text-right font-medium">Değişim</th>
-            <th class="py-2.5 px-4 text-right font-medium">P/E</th>
-            ${analystHeader}
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <div class="px-4 py-2 text-xs text-slate-600 border-t" style="border-color:#111e32">
-      ${list.length} hisse — ${isUS ? 'Güçlü Al/Al oranına göre sıralı' : 'Piyasa değerine göre sıralı'}
-    </div>
-  </div>`;
-}
 
 async function runScanner() {
   const preset = document.getElementById('sc-scan-preset').value;
