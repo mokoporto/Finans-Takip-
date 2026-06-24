@@ -8,21 +8,93 @@ from __future__ import annotations
 import json
 import asyncio
 import uuid
+import calendar
+import hmac
+import hashlib
+import os
+import secrets as _secrets
 from contextlib import asynccontextmanager
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional, List, Any, Dict
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Query, Form
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 # ─────────────────────────────────────────────────────────────────────
 # MCP Streamable HTTP Client  (no 3rd-party MCP library needed)
 # ─────────────────────────────────────────────────────────────────────
 
 MCP_URL = "https://borsamcp.fastmcp.app/mcp"
+
+# ─── Auth ────────────────────────────────────────────────────────────
+# SITE_PASSWORD env var ile koruma. Boş bırakılırsa (geliştirme), auth devre dışı.
+SITE_PASSWORD = os.environ.get("SITE_PASSWORD", "")
+_SECRET_KEY = os.environ.get("SECRET_KEY") or _secrets.token_hex(32)
+
+ALLOWED_EXCHANGES = {"btcturk", "coinbase", "binance", "kucoin"}
+
+
+def _session_token() -> str:
+    return hmac.new(_SECRET_KEY.encode(), SITE_PASSWORD.encode(), hashlib.sha256).hexdigest()
+
+
+def _is_authenticated(request: Request) -> bool:
+    if not SITE_PASSWORD:
+        return True
+    session = request.cookies.get("session")
+    return bool(session and hmac.compare_digest(session, _session_token()))
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if path in ("/login", "/logout") or path.startswith("/static"):
+            return await call_next(request)
+        if not _is_authenticated(request):
+            if path.startswith("/api/"):
+                return JSONResponse({"detail": "Giriş gerekli"}, status_code=401)
+            return RedirectResponse(url="/login", status_code=302)
+        return await call_next(request)
+
+
+_LOGIN_HTML = """<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Giriş — Finans Takip</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#080d14;color:#e2e8f0;
+  display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+.card{background:#0d1829;border:1px solid #1e2d45;border-radius:14px;padding:2rem;width:100%;max-width:360px}
+h1{font-size:1.25rem;font-weight:600;margin:0 0 1.5rem;color:#f1f5f9}
+input{width:100%;padding:.75rem 1rem;background:#0a1628;border:1px solid #1e2d45;
+  border-radius:8px;color:#e2e8f0;font-size:1rem;margin-bottom:1rem;outline:none}
+input:focus{border-color:#3b82f6}
+button{width:100%;padding:.75rem;background:#3b82f6;color:#fff;border:none;
+  border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer}
+button:hover{background:#2563eb}
+.err{color:#f87171;font-size:.875rem;margin-top:.75rem}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📈 Finans Takip</h1>
+  <form method="post" action="/login">
+    <input type="password" name="password" placeholder="Şifre" autofocus autocomplete="current-password">
+    <button type="submit">Giriş Yap</button>
+    {error}
+  </form>
+</div>
+</body>
+</html>"""
 
 
 class MCPSession:
@@ -161,6 +233,39 @@ DATA_DIR = Path(__file__).parent / "data"
 WATCHLIST_FILE = DATA_DIR / "watchlist.json"
 STATIC_DIR = Path(__file__).parent / "static"
 
+CRYPTO_UNIVERSE = [
+    {"symbol": "BTC", "name": "Bitcoin"},
+    {"symbol": "ETH", "name": "Ethereum"},
+    {"symbol": "SOL", "name": "Solana"},
+    {"symbol": "BNB", "name": "BNB"},
+    {"symbol": "XRP", "name": "XRP"},
+    {"symbol": "DOGE", "name": "Dogecoin"},
+    {"symbol": "ADA", "name": "Cardano"},
+    {"symbol": "AVAX", "name": "Avalanche"},
+    {"symbol": "LINK", "name": "Chainlink"},
+    {"symbol": "DOT", "name": "Polkadot"},
+    {"symbol": "TRX", "name": "TRON"},
+    {"symbol": "MATIC", "name": "Polygon"},
+    {"symbol": "LTC", "name": "Litecoin"},
+    {"symbol": "BCH", "name": "Bitcoin Cash"},
+    {"symbol": "UNI", "name": "Uniswap"},
+    {"symbol": "ATOM", "name": "Cosmos"},
+    {"symbol": "ETC", "name": "Ethereum Classic"},
+    {"symbol": "FIL", "name": "Filecoin"},
+    {"symbol": "APT", "name": "Aptos"},
+    {"symbol": "ARB", "name": "Arbitrum"},
+    {"symbol": "OP", "name": "Optimism"},
+    {"symbol": "NEAR", "name": "NEAR Protocol"},
+    {"symbol": "INJ", "name": "Injective"},
+    {"symbol": "ICP", "name": "Internet Computer"},
+    {"symbol": "AAVE", "name": "Aave"},
+    {"symbol": "MKR", "name": "Maker"},
+    {"symbol": "SUI", "name": "Sui"},
+    {"symbol": "SEI", "name": "Sei"},
+    {"symbol": "RNDR", "name": "Render"},
+    {"symbol": "FET", "name": "Fetch.ai"},
+]
+
 # ─── In-memory price cache ───────────────────────────────────────────
 import time as _time
 _prices_cache: Dict[str, Any] = {}   # {symbol_market: {price, change_pct, ...}}
@@ -182,7 +287,15 @@ async def lifespan(app: FastAPI):
         await mcp.stop()
 
 
-app = FastAPI(title="Finans Takip", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="Finans Takip",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
+app.add_middleware(AuthMiddleware)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -258,8 +371,12 @@ async def get_watchlist():
 
 @app.post("/api/watchlist")
 async def add_asset(req: AddAssetRequest):
+    global _prices_cache, _prices_cache_ts
     watchlist = load_watchlist()
     sym = req.symbol.upper().strip()
+    exchange = req.exchange or ("coinbase" if req.market == "crypto_global" else "btcturk")
+    if req.market == "crypto_global":
+        exchange = "coinbase"
     for item in watchlist:
         if item["symbol"] == sym and item["market"] == req.market:
             raise HTTPException(400, f"{sym} zaten listede")
@@ -267,20 +384,26 @@ async def add_asset(req: AddAssetRequest):
         "symbol": sym,
         "market": req.market,
         "name": req.name or sym,
-        "exchange": req.exchange or "btcturk",
+        "exchange": exchange,
     }
     watchlist.append(entry)
     save_watchlist(watchlist)
+    _prices_cache = {}
+    _prices_cache_ts = 0.0
     return {"success": True, "entry": entry}
 
 
 @app.delete("/api/watchlist/{symbol}")
 async def remove_asset(symbol: str, market: str = Query(...)):
+    global _prices_cache, _prices_cache_ts
+    sym = symbol.upper().strip()
     watchlist = load_watchlist()
-    new = [w for w in watchlist if not (w["symbol"] == symbol and w["market"] == market)]
+    new = [w for w in watchlist if not (w["symbol"].upper() == sym and w["market"] == market)]
     if len(new) == len(watchlist):
         raise HTTPException(404, "Varlık bulunamadı")
     save_watchlist(new)
+    _prices_cache = {}
+    _prices_cache_ts = 0.0
     return {"success": True}
 
 
@@ -361,12 +484,22 @@ async def delete_position(position_id: str):
 @app.put("/api/portfolio/{position_id}")
 async def update_position(position_id: str, req: PortfolioPosition):
     portfolio = load_portfolio()
+    sym = req.symbol.upper().strip()
+    for pos in portfolio:
+        if (
+            pos.get("id") != position_id
+            and pos.get("symbol") == sym
+            and pos.get("market") == req.market
+        ):
+            raise HTTPException(400, f"{sym} için bu piyasada başka bir pozisyon var")
     for pos in portfolio:
         if pos.get("id") == position_id:
+            pos["symbol"]        = sym
+            pos["market"]        = req.market
             pos["quantity"]      = req.quantity
             pos["avg_price"]     = req.avg_price
             pos["purchase_date"] = req.purchase_date or pos.get("purchase_date")
-            pos["name"]          = req.name or pos.get("name", req.symbol.upper())
+            pos["name"]          = req.name or pos.get("name", sym)
             save_portfolio(portfolio)
             return {"success": True, "position": pos}
     raise HTTPException(404, "Pozisyon bulunamadı")
@@ -375,6 +508,34 @@ async def update_position(position_id: str, req: PortfolioPosition):
 # ─────────────────────────────────────────────────────────────────────
 # Prices  (batch)
 # ─────────────────────────────────────────────────────────────────────
+
+
+def _fund_payload_has_price(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    fund = payload.get("fund") if isinstance(payload.get("fund"), dict) else {}
+    if _safe_float(fund.get("price")) is not None:
+        return True
+    recent = payload.get("recent_prices")
+    return isinstance(recent, list) and any(_safe_float(x.get("price")) is not None for x in recent if isinstance(x, dict))
+
+
+async def _get_fund_data_robust(symbol: str, include_portfolio: bool = False) -> dict:
+    sym = symbol.upper().strip()
+    attempts = []
+    if include_portfolio:
+        attempts.append({"symbol": sym, "include_performance": True, "include_portfolio": True})
+    attempts.append({"symbol": sym, "include_performance": True})
+    attempts.append({"symbol": sym, "include_performance": False})
+
+    last: dict = {}
+    for args in attempts:
+        data = await call_mcp_safe("get_fund_data", args, timeout=25)
+        if isinstance(data, dict) and data:
+            last = data
+            if _fund_payload_has_price(data):
+                return data
+    return last
 
 
 async def _fetch_all_prices(watchlist: list) -> list:
@@ -400,6 +561,11 @@ async def _fetch_all_prices(watchlist: list) -> list:
             {"symbol": w["symbol"], "market": w["market"], "period": "5d"},
             timeout=30,
         )
+        tasks[f"profile_{w['symbol']}"] = call_mcp_safe(
+            "get_profile",
+            {"symbol": w["symbol"], "market": w["market"]},
+            timeout=15,
+        )
 
     for w in funds:
         tasks[f"fund_{w['symbol']}"] = call_mcp_safe(
@@ -407,21 +573,37 @@ async def _fetch_all_prices(watchlist: list) -> list:
         )
 
     for w in ctr:
+        pair = _crypto_pair(w["symbol"], "crypto_tr")
         tasks[f"ctr_{w['symbol']}"] = call_mcp_safe(
             "get_crypto_market",
-            {"symbol": w["symbol"], "exchange": w.get("exchange", "btcturk"), "data_type": "ticker"},
+            {"symbol": pair, "exchange": w.get("exchange", "btcturk"), "data_type": "ticker"},
+            timeout=15,
+        )
+        tasks[f"chist_{w['symbol']}"] = call_mcp_safe(
+            "get_historical_data",
+            {"symbol": pair, "market": "crypto_tr", "period": "5d"},
             timeout=15,
         )
     for w in cgl:
+        pair = _crypto_pair(w["symbol"], "crypto_global")
         tasks[f"cgl_{w['symbol']}"] = call_mcp_safe(
             "get_crypto_market",
-            {"symbol": w["symbol"], "exchange": "coinbase", "data_type": "ticker"},
+            {"symbol": pair, "exchange": "coinbase", "data_type": "ticker"},
+            timeout=15,
+        )
+        tasks[f"chist_{w['symbol']}"] = call_mcp_safe(
+            "get_historical_data",
+            {"symbol": pair, "market": "crypto_global", "period": "5d"},
             timeout=15,
         )
 
     keys = list(tasks.keys())
     raw = await asyncio.gather(*tasks.values(), return_exceptions=True)
     results = {k: (v if not isinstance(v, Exception) else {}) for k, v in zip(keys, raw)}
+    for w in funds:
+        key = f"fund_{w['symbol']}"
+        if not _fund_payload_has_price(results.get(key)):
+            results[key] = await _get_fund_data_robust(w["symbol"])
     return [{**w, **_extract_price(w, results)} for w in watchlist]
 
 
@@ -436,7 +618,7 @@ async def get_prices():
     # Return cached data immediately if fresh enough
     wl_keys = {f"{w['symbol']}_{w['market']}" for w in watchlist}
     cache_keys = set(_prices_cache.keys())
-    cache_covers = wl_keys.issubset(cache_keys) or (bool(_prices_cache) and (now - _prices_cache_ts) < _CACHE_TTL)
+    cache_covers = wl_keys.issubset(cache_keys)
 
     if cache_covers:
         cached = [{**w, **_prices_cache.get(f"{w['symbol']}_{w['market']}", {})} for w in watchlist]
@@ -447,7 +629,7 @@ async def get_prices():
 
     # No cache — fetch now (blocking, but only happens once per server start)
     fresh = await _fetch_all_prices(watchlist)
-    _prices_cache = {f"{r['symbol']}_{r['market']}": {k: v for k, v in r.items() if k not in ('symbol','market','name','exchange')} for r in fresh}
+    _prices_cache = {f"{r['symbol']}_{r['market']}": {k: v for k, v in r.items() if k not in ('symbol','market','exchange')} for r in fresh}
     _prices_cache_ts = now
     return fresh
 
@@ -457,7 +639,7 @@ async def _refresh_prices_cache(watchlist: list) -> None:
     global _prices_cache, _prices_cache_ts
     try:
         fresh = await _fetch_all_prices(watchlist)
-        _prices_cache = {f"{r['symbol']}_{r['market']}": {k: v for k, v in r.items() if k not in ('symbol','market','name','exchange')} for r in fresh}
+        _prices_cache = {f"{r['symbol']}_{r['market']}": {k: v for k, v in r.items() if k not in ('symbol','market','exchange')} for r in fresh}
         _prices_cache_ts = _time.time()
     except Exception:
         pass
@@ -474,11 +656,95 @@ def _change_from_hist(hist: dict) -> Optional[float]:
     return None
 
 
+def _latest_hist_bar(hist: dict) -> dict:
+    """Return latest usable historical bar from an MCP history response."""
+    pts = hist.get("data", []) if isinstance(hist, dict) else []
+    clean = [p for p in pts if isinstance(p, dict) and _safe_float(p.get("close")) is not None]
+    if not clean:
+        return {}
+    clean.sort(key=lambda p: str(p.get("date", "")))
+    return clean[-1]
+
+
+def _quote_from_history(symbol: str, market: str, hist: dict) -> dict:
+    latest = _latest_hist_bar(hist)
+    if not latest:
+        return {}
+    price = _safe_float(latest.get("close"))
+    change = _change_from_hist(hist)
+    return {
+        "symbol": symbol.upper().strip(),
+        "market": market,
+        "current_price": price,
+        "price": price,
+        "change_percent": change,
+        "change_pct": change,
+        "volume": latest.get("volume"),
+        "price_time": str(latest.get("date", ""))[:10],
+        "source": "history_fallback",
+    }
+
+
 def _safe_float(val: Any) -> Optional[float]:
     try:
         return float(val) if val is not None else None
     except (ValueError, TypeError):
         return None
+
+
+def _crypto_pair(symbol: str, market: str) -> str:
+    sym = symbol.upper().strip()
+    if market == "crypto_global":
+        if "-" in sym:
+            return sym
+        if sym.endswith("USD"):
+            return f"{sym[:-3]}-USD"
+        return f"{sym}-USD"
+    if market == "crypto_tr":
+        if sym.endswith("TRY"):
+            return sym
+        return f"{sym}TRY"
+    return sym
+
+
+def _crypto_base_symbol(symbol: str) -> str:
+    sym = symbol.upper().strip()
+    if sym.endswith("-USD"):
+        return sym[:-4]
+    if sym.endswith("TRY"):
+        return sym[:-3]
+    if sym.endswith("USD"):
+        return sym[:-3]
+    return sym
+
+
+def _extract_ticker(raw: dict) -> dict:
+    if not isinstance(raw, dict):
+        return {}
+    ticker = raw.get("ticker")
+    if isinstance(ticker, dict):
+        return ticker
+    tickers = raw.get("tickers")
+    if isinstance(tickers, list) and tickers and isinstance(tickers[0], dict):
+        return tickers[0]
+    return {}
+
+
+def _latest_change_from_history(history: dict) -> Optional[float]:
+    bars = history.get("data", []) if isinstance(history, dict) else []
+    clean = [b for b in bars if isinstance(b, dict) and _safe_float(b.get("close")) is not None]
+    if len(clean) < 2:
+        return None
+    clean.sort(key=lambda b: str(b.get("date", "")))
+    current = _safe_float(clean[-1].get("close"))
+    previous = None
+    if len(clean) >= 25 and "T" in str(clean[-1].get("date", "")):
+        previous = _safe_float(clean[-25].get("close"))
+    if previous is None:
+        previous = _safe_float(clean[-2].get("close"))
+    if current is None or previous in (None, 0):
+        return None
+    return (current - previous) / previous * 100
 
 
 def _find_in_data(data: dict, symbol: str) -> dict:
@@ -527,12 +793,21 @@ def _extract_price(w: dict, results: dict) -> dict:
                 d.get("current_price") or d.get("currentPrice") or
                 d.get("regularMarketPrice") or d.get("price") or d.get("son")
             )
+            hist = results.get(f"hist_{sym}", {})
+            if price is None:
+                price = _safe_float(_latest_hist_bar(hist).get("close"))
             # change_percent not in quick_info — compute from 5-day history
             chg = _safe_float(
                 d.get("change_percent") or d.get("regularMarketChangePercent") or
                 d.get("changePercent") or d.get("change_pct") or d.get("gunlukDegisim")
-            ) or _change_from_hist(results.get(f"hist_{sym}", {}))
+            ) or _change_from_hist(hist)
             currency = d.get("currency", "TRY" if market == "bist" else "USD")
+            profile_raw = results.get(f"profile_{sym}", {})
+            profile = profile_raw.get("profile", {}) if isinstance(profile_raw, dict) else {}
+            raw_name = d.get("longName") or d.get("shortName") or d.get("name") or profile.get("name") or w["name"]
+            full_name = raw_name
+            if str(full_name or "").upper() == str(sym).upper():
+                full_name = profile.get("description") or profile.get("sector") or raw_name
             # Son fiyat saati: tarihsel verinin son barının tarihi + fetch saati
             import datetime as _dt
             hist_bars = results.get(f"hist_{sym}", {}).get("data", [])
@@ -543,7 +818,10 @@ def _extract_price(w: dict, results: dict) -> dict:
                 "price": price,
                 "change_pct": chg,
                 "currency": currency,
-                "name": d.get("longName") or d.get("shortName") or d.get("name") or w["name"],
+                "name": raw_name,
+                "full_name": full_name,
+                "sector": profile.get("sector") or profile.get("industry"),
+                "description": profile.get("description"),
                 "price_time": price_time,
             }
         if market == "fund":
@@ -586,6 +864,9 @@ def _extract_price(w: dict, results: dict) -> dict:
                 "change_pct": change_pct,
                 "currency": "TRY",
                 "name": fd.get("name") or fd.get("fon_adi") or w["name"],
+                "full_name": fd.get("name") or fd.get("fon_adi") or w["name"],
+                "fund_type": fd.get("category") or fd.get("fon_turu"),
+                "category": fd.get("category") or fd.get("fon_turu"),
                 "price_date": price_date,
             }
         if market in ("crypto_tr", "crypto_global"):
@@ -593,7 +874,7 @@ def _extract_price(w: dict, results: dict) -> dict:
             raw = results.get(key, {})
             # Crypto response: {"ticker": {price, bid, ask, high_24h, low_24h, volume_24h}}
             # or {"tickers": [...]}
-            t = raw.get("ticker") or (raw.get("tickers") or [{}])[0]
+            t = _extract_ticker(raw)
             return {
                 "price": _safe_float(
                     t.get("price") or t.get("last") or t.get("lastPrice")
@@ -601,8 +882,9 @@ def _extract_price(w: dict, results: dict) -> dict:
                 "change_pct": _safe_float(
                     t.get("daily_return") or t.get("dailyPercent") or
                     t.get("daily") or t.get("percentChange24h")
-                ),
+                ) or _latest_change_from_history(results.get(f"chist_{sym}", {})),
                 "currency": "TRY" if market == "crypto_tr" else "USD",
+                "name": w.get("name") or _crypto_base_symbol(sym),
             }
     except Exception:
         pass
@@ -616,12 +898,42 @@ def _extract_price(w: dict, results: dict) -> dict:
 
 @app.get("/api/asset/quick")
 async def asset_quick(symbol: str, market: str):
-    return await call_mcp("get_quick_info", {"symbol": symbol, "market": market})
+    if len(symbol) > 20 or len(market) > 20:
+        raise HTTPException(400, "Parametre çok uzun")
+    if market in ("crypto_tr", "crypto_global"):
+        exchange = "btcturk" if market == "crypto_tr" else "coinbase"
+        return await call_mcp(
+            "get_crypto_market",
+            {"symbol": _crypto_pair(symbol, market), "exchange": exchange, "data_type": "ticker"},
+        )
+    sym = symbol.upper().strip()
+    quick = await call_mcp_safe("get_quick_info", {"symbol": sym, "market": market}, timeout=12)
+    if isinstance(quick, dict):
+        d = _find_in_data(quick, sym)
+        price = _safe_float(
+            d.get("current_price") or d.get("currentPrice") or
+            d.get("regularMarketPrice") or d.get("price") or d.get("son")
+        )
+        if price is not None:
+            return quick
+
+    hist = await call_mcp_safe(
+        "get_historical_data",
+        {"symbol": sym, "market": market, "period": "5d"},
+        timeout=20,
+    )
+    fallback = _quote_from_history(sym, market, hist)
+    if fallback:
+        return {"data": fallback, "fallback": True}
+    if quick:
+        return quick
+    raise HTTPException(404, f"{sym} için fiyat verisi bulunamadı")
 
 
 @app.get("/api/asset/technical")
 async def asset_technical(symbol: str, market: str, timeframe: str = "1d"):
-    return await call_mcp("get_technical_analysis", {"symbol": symbol, "market": market, "timeframe": timeframe})
+    sym = _crypto_pair(symbol, market) if market in ("crypto_tr", "crypto_global") else symbol
+    return await call_mcp("get_technical_analysis", {"symbol": sym, "market": market, "timeframe": timeframe})
 
 
 @app.get("/api/asset/multi-analysis")
@@ -632,7 +944,7 @@ async def multi_analysis(symbol: str, market: str):
     tasks: Dict[str, Any] = {
         "analyst":    call_mcp("get_analyst_data",      {"symbol": symbol, "market": market}),
         "tech_daily": call_mcp("get_technical_analysis", {"symbol": symbol, "market": market, "timeframe": "1d"}),
-        "tech_weekly":call_mcp("get_technical_analysis", {"symbol": symbol, "market": market, "timeframe": "1w"}),
+        "tech_weekly":call_mcp("get_technical_analysis", {"symbol": symbol, "market": market, "timeframe": "1W"}),
         "quick":      call_mcp("get_quick_info",         {"symbol": symbol, "market": market}),
     }
     keys = list(tasks.keys())
@@ -646,9 +958,17 @@ async def asset_analyst(symbol: str, market: str):
     return await call_mcp("get_analyst_data", {"symbol": symbol, "market": market})
 
 
+@app.get("/api/asset/news")
+async def asset_news(symbol: str, market: str = "bist", limit: int = Query(10, ge=1, le=50)):
+    if market != "bist":
+        return {"symbol": symbol.upper().strip(), "market": market, "news": []}
+    return await call_mcp("get_news", {"symbol": symbol.upper().strip(), "limit": limit})
+
+
 @app.get("/api/asset/history")
 async def asset_history(symbol: str, market: str, period: str = "3mo"):
-    return await call_mcp("get_historical_data", {"symbol": symbol, "market": market, "period": period})
+    sym = _crypto_pair(symbol, market) if market in ("crypto_tr", "crypto_global") else symbol
+    return await call_mcp("get_historical_data", {"symbol": sym, "market": market, "period": period})
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -1062,9 +1382,10 @@ def _compute_tv_signals(cp: float, tech: dict, bars: list) -> dict:
 @app.get("/api/asset/tv-signals")
 async def tv_signals(symbol: str, market: str):
     mkt = market
+    sym = _crypto_pair(symbol, mkt) if mkt in ("crypto_tr", "crypto_global") else symbol
     tech, hist_raw = await asyncio.gather(
-        call_mcp("get_technical_analysis", {"symbol": symbol, "market": mkt, "timeframe": "1d"}),
-        call_mcp("get_historical_data",    {"symbol": symbol, "market": mkt, "period": "1mo"}),
+        call_mcp("get_technical_analysis", {"symbol": sym, "market": mkt, "timeframe": "1d"}),
+        call_mcp("get_historical_data",    {"symbol": sym, "market": mkt, "period": "1mo"}),
     )
     cp = _safe_float(tech.get("current_price")) if isinstance(tech, dict) else None
     bars = hist_raw.get("data", []) if isinstance(hist_raw, dict) else (hist_raw if isinstance(hist_raw, list) else [])
@@ -1075,12 +1396,494 @@ async def tv_signals(symbol: str, market: str):
 
 @app.get("/api/fund")
 async def fund_detail(symbol: str):
-    return await call_mcp("get_fund_data", {"symbol": symbol, "include_performance": True})
+    data = await _get_fund_data_robust(symbol, include_portfolio=True)
+    if data:
+        return data
+    raise HTTPException(404, f"{symbol.upper().strip()} fon verisi bulunamadı")
+
+
+def _extract_bars(payload: Any) -> List[dict]:
+    if isinstance(payload, dict):
+        for key in ("data", "historical_data", "prices", "history", "items", "results"):
+            if isinstance(payload.get(key), list):
+                return payload[key]
+    if isinstance(payload, list):
+        return payload
+    return []
+
+
+def _return_from_bars(payload: Any) -> Optional[float]:
+    bars = _extract_bars(payload)
+    clean = []
+    for b in bars:
+        if not isinstance(b, dict):
+            continue
+        val = _safe_float(b.get("close") or b.get("price") or b.get("value"))
+        if val is not None and val > 0:
+            clean.append({"date": str(b.get("date", "")), "value": val})
+    if len(clean) < 2:
+        return None
+    clean.sort(key=lambda x: x["date"])
+    start = clean[0]["value"]
+    end = clean[-1]["value"]
+    if not start:
+        return None
+    return (end - start) / start * 100
+
+
+def _return_from_fx(payload: Any) -> Optional[float]:
+    ret = _return_from_bars(payload)
+    if ret is not None:
+        return ret
+    if isinstance(payload, dict):
+        for key in ("change_pct", "return_percent", "period_return", "change_percent"):
+            val = _safe_float(payload.get(key))
+            if val is not None:
+                return val
+    return None
+
+
+def _add_months(d: date, months: int) -> date:
+    y = d.year + (d.month - 1 + months) // 12
+    m = (d.month - 1 + months) % 12 + 1
+    return date(y, m, 1)
+
+
+def _shift_months(d: date, months: int) -> date:
+    y = d.year + (d.month - 1 + months) // 12
+    m = (d.month - 1 + months) % 12 + 1
+    last = calendar.monthrange(y, m)[1]
+    return date(y, m, min(d.day, last))
+
+
+@app.get("/api/what-if")
+async def what_if(symbol: str, market: str, amount: float, months: int = Query(1, ge=1, le=12)):
+    sym = symbol.upper().strip()
+    mkt = market.strip()
+    today = date.today()
+    start = _shift_months(today, -months)
+
+    if amount <= 0:
+        raise HTTPException(400, "Tutar 0'dan büyük olmalı")
+    if mkt not in ("bist", "us", "fund"):
+        raise HTTPException(400, "Piyasa bist, us veya fund olmalı")
+
+    if mkt == "fund":
+        latest = await call_mcp(
+            "get_fund_data",
+            {"symbol": sym, "include_performance": True},
+        )
+        latest_prices = latest.get("recent_prices", []) if isinstance(latest, dict) else []
+        latest_date = None
+        if latest_prices and isinstance(latest_prices[0], dict):
+            latest_date = latest_prices[0].get("date")
+        try:
+            end_dt = date.fromisoformat(str(latest_date)) if latest_date else today
+        except ValueError:
+            end_dt = today
+        start = _shift_months(end_dt, -months)
+        data = await call_mcp(
+            "get_fund_data",
+            {
+                "symbol": sym,
+                "include_performance": True,
+                "start_date": start.isoformat(),
+                "end_date": end_dt.isoformat(),
+            },
+        )
+        fund = data.get("fund", {}) if isinstance(data, dict) else {}
+        cr = data.get("custom_return", {}) if isinstance(data, dict) else {}
+        start_price = _safe_float(cr.get("start_price"))
+        end_price = _safe_float(cr.get("end_price")) or _safe_float(fund.get("price"))
+        return_pct = _safe_float(cr.get("return_percent"))
+        name = fund.get("name") or sym
+        category = fund.get("category")
+        currency = "TRY"
+        start_date = cr.get("start_date") or start.isoformat()
+        end_date = cr.get("end_date") or today.isoformat()
+    else:
+        hist = await call_mcp(
+            "get_historical_data",
+            {"symbol": sym, "market": mkt, "start_date": start.isoformat(), "end_date": today.isoformat()},
+        )
+        bars = _extract_bars(hist)
+        clean = []
+        for b in bars:
+            if not isinstance(b, dict):
+                continue
+            val = _safe_float(b.get("close") or b.get("price") or b.get("value"))
+            if val and val > 0:
+                clean.append({"date": str(b.get("date", ""))[:10], "price": val})
+        clean.sort(key=lambda x: x["date"])
+        if len(clean) < 2:
+            raise HTTPException(404, "Bu dönem için yeterli fiyat verisi bulunamadı")
+        start_price = clean[0]["price"]
+        end_price = clean[-1]["price"]
+        return_pct = (end_price - start_price) / start_price * 100
+        quick = await call_mcp_safe("get_quick_info", {"symbol": sym, "market": mkt}, timeout=10)
+        qd = _find_in_data(quick, sym) if isinstance(quick, dict) else {}
+        name = qd.get("longName") or qd.get("name") or qd.get("shortName") or sym
+        category = qd.get("sector") or qd.get("industry")
+        currency = qd.get("currency", "TRY" if mkt == "bist" else "USD")
+        start_date = clean[0]["date"]
+        end_date = clean[-1]["date"]
+
+    if not start_price or not end_price:
+        raise HTTPException(404, "Başlangıç veya bitiş fiyatı bulunamadı")
+
+    units = amount / start_price
+    current_value = units * end_price
+    profit = current_value - amount
+    return {
+        "symbol": sym,
+        "market": mkt,
+        "name": name,
+        "category": category,
+        "months": months,
+        "amount": amount,
+        "currency": currency,
+        "start_date": start_date,
+        "end_date": end_date,
+        "start_price": start_price,
+        "end_price": end_price,
+        "units": units,
+        "current_value": current_value,
+        "profit": profit,
+        "return_percent": return_pct,
+    }
+
+
+async def _fund_daily_changes(sym: str, start: date, end: date) -> List[dict]:
+    pairs = []
+    cur = start + timedelta(days=1)
+    while cur <= end:
+        pairs.append((cur - timedelta(days=1), cur))
+        cur += timedelta(days=1)
+
+    async def fetch_pair(s: date, e: date) -> Optional[dict]:
+        raw = await call_mcp_safe(
+            "get_fund_data",
+            {
+                "symbol": sym,
+                "include_performance": True,
+                "start_date": s.isoformat(),
+                "end_date": e.isoformat(),
+            },
+            timeout=8,
+        )
+        cr = raw.get("custom_return", {}) if isinstance(raw, dict) else {}
+        val = _safe_float(cr.get("return_percent"))
+        start_price = _safe_float(cr.get("start_price"))
+        end_price = _safe_float(cr.get("end_price"))
+        start_date = cr.get("start_date")
+        end_date = cr.get("end_date")
+        if val is None or not start_date or not end_date or start_date == end_date:
+            return None
+        if start_price is not None and end_price is not None and start_price == end_price:
+            return None
+        return {
+            "date": end_date,
+            "start_date": start_date,
+            "change_pct": val,
+            "start_price": start_price,
+            "end_price": end_price,
+        }
+
+    raw_changes = await asyncio.gather(*[fetch_pair(s, e) for s, e in pairs])
+    by_date: Dict[str, dict] = {}
+    for item in raw_changes:
+        if item:
+            by_date[item["date"]] = item
+    return sorted(by_date.values(), key=lambda x: str(x.get("date", "")))
+
+
+@app.get("/api/fund/performance")
+async def fund_performance(symbol: str, days: int = Query(60, ge=7, le=365)):
+    sym = symbol.upper().strip()
+    today = date.today()
+    start = today - timedelta(days=days)
+    data = await call_mcp(
+        "get_fund_data",
+        {
+            "symbol": sym,
+            "include_performance": True,
+            "start_date": start.isoformat(),
+            "end_date": today.isoformat(),
+        },
+    )
+    prices = data.get("recent_prices", []) if isinstance(data, dict) else []
+    prices = sorted(
+        [
+            {"date": p.get("date"), "price": _safe_float(p.get("price"))}
+            for p in prices if isinstance(p, dict) and _safe_float(p.get("price")) is not None
+        ],
+        key=lambda x: str(x.get("date", "")),
+    )
+    changes = await _fund_daily_changes(sym, start, today)
+    positives = sum(1 for x in changes if x["change_pct"] > 0)
+    negatives = sum(1 for x in changes if x["change_pct"] < 0)
+    flats = sum(1 for x in changes if x["change_pct"] == 0)
+    best = max(changes, key=lambda x: x["change_pct"], default=None)
+    worst = min(changes, key=lambda x: x["change_pct"], default=None)
+    custom = data.get("custom_return", {}) if isinstance(data, dict) else {}
+    month_start = date(today.year, today.month, 1)
+    month_ranges = []
+    for i in range(12, 0, -1):
+        start_m = _add_months(month_start, -i)
+        end_m = _add_months(start_m, 1) - timedelta(days=1)
+        if end_m > today:
+            end_m = today
+        month_ranges.append((start_m, end_m))
+    monthly_raw = await asyncio.gather(*[
+        call_mcp_safe(
+            "get_fund_data",
+            {
+                "symbol": sym,
+                "include_performance": True,
+                "start_date": s.isoformat(),
+                "end_date": e.isoformat(),
+            },
+            timeout=10,
+        )
+        for s, e in month_ranges
+    ])
+    monthly_returns = []
+    for (s, e), raw in zip(month_ranges, monthly_raw):
+        cr = raw.get("custom_return", {}) if isinstance(raw, dict) else {}
+        val = _safe_float(cr.get("return_percent"))
+        if val is not None:
+            monthly_returns.append({
+                "month": s.strftime("%Y-%m"),
+                "start_date": cr.get("start_date") or s.isoformat(),
+                "end_date": cr.get("end_date") or e.isoformat(),
+                "return_percent": val,
+            })
+    best_month = max(monthly_returns, key=lambda x: x["return_percent"], default=None)
+    worst_month = min(monthly_returns, key=lambda x: x["return_percent"], default=None)
+    return {
+        "symbol": sym,
+        "fund": data.get("fund", {}) if isinstance(data, dict) else {},
+        "period_days": custom.get("days") or days,
+        "requested_days": days,
+        "return_percent": _safe_float(custom.get("return_percent")),
+        "start_date": custom.get("start_date"),
+        "end_date": custom.get("end_date"),
+        "start_price": _safe_float(custom.get("start_price")),
+        "end_price": _safe_float(custom.get("end_price")),
+        "daily_sample_size": len(changes),
+        "positive_days": positives,
+        "negative_days": negatives,
+        "flat_days": flats,
+        "best_day": best,
+        "worst_day": worst,
+        "best_month": best_month,
+        "worst_month": worst_month,
+        "monthly_returns": monthly_returns,
+        "recent_prices": prices,
+    }
+
+
+@app.get("/api/fund/compare")
+async def fund_compare(symbol: str, days: int = Query(60, ge=7, le=365)):
+    sym = symbol.upper().strip()
+    today = date.today()
+    end_s = today.isoformat()
+
+    def fund_return_task(period_days: int):
+        start_s = (today - timedelta(days=period_days)).isoformat()
+        return call_mcp_safe(
+            "get_fund_data",
+            {
+                "symbol": sym,
+                "include_performance": True,
+                "start_date": start_s,
+                "end_date": end_s,
+            },
+            timeout=20,
+        )
+
+    month_start = date(today.year, today.month, 1)
+    month_ranges = []
+    for i in range(12, 0, -1):
+        start_m = _add_months(month_start, -i)
+        end_m = _add_months(start_m, 1) - timedelta(days=1)
+        if end_m > today:
+            end_m = today
+        month_ranges.append((start_m, end_m))
+
+    ret60_task = fund_return_task(60)
+    ret90_task = fund_return_task(90)
+    monthly_tasks = [
+        call_mcp_safe(
+            "get_fund_data",
+            {
+                "symbol": sym,
+                "include_performance": True,
+                "start_date": s.isoformat(),
+                "end_date": e.isoformat(),
+            },
+            timeout=10,
+        )
+        for s, e in month_ranges
+    ]
+    ret60, ret90, *monthly_raw = await asyncio.gather(ret60_task, ret90_task, *monthly_tasks)
+
+    def custom_payload(raw: dict) -> dict:
+        cr = raw.get("custom_return", {}) if isinstance(raw, dict) else {}
+        return {
+            "return_percent": _safe_float(cr.get("return_percent")),
+            "start_date": cr.get("start_date"),
+            "end_date": cr.get("end_date"),
+            "days": cr.get("days"),
+            "start_price": _safe_float(cr.get("start_price")),
+            "end_price": _safe_float(cr.get("end_price")),
+        }
+
+    monthly_returns = []
+    for (s, e), raw in zip(month_ranges, monthly_raw):
+        cr = raw.get("custom_return", {}) if isinstance(raw, dict) else {}
+        val = _safe_float(cr.get("return_percent"))
+        if val is not None:
+            monthly_returns.append({
+                "month": s.strftime("%Y-%m"),
+                "start_date": cr.get("start_date") or s.isoformat(),
+                "end_date": cr.get("end_date") or e.isoformat(),
+                "return_percent": val,
+            })
+
+    best_month = max(monthly_returns, key=lambda x: x["return_percent"], default=None)
+    worst_month = min(monthly_returns, key=lambda x: x["return_percent"], default=None)
+    return {
+        "symbol": sym,
+        "return_60d": custom_payload(ret60),
+        "return_90d": custom_payload(ret90),
+        "best_month": best_month,
+        "worst_month": worst_month,
+        "monthly_returns": monthly_returns,
+    }
 
 
 @app.get("/api/crypto")
 async def crypto_detail(symbol: str, exchange: str = "btcturk"):
-    return await call_mcp("get_crypto_market", {"symbol": symbol, "exchange": exchange, "data_type": "ticker"})
+    if exchange not in ALLOWED_EXCHANGES:
+        raise HTTPException(400, "Geçersiz exchange")
+    if len(symbol) > 20:
+        raise HTTPException(400, "Parametre çok uzun")
+    market = "crypto_tr" if exchange == "btcturk" else "crypto_global"
+    pair = _crypto_pair(symbol, market)
+    return await call_mcp("get_crypto_market", {"symbol": pair, "exchange": exchange, "data_type": "ticker"})
+
+
+async def _crypto_snapshot(item: dict, market: str) -> dict:
+    base = item["symbol"].upper()
+    pair = _crypto_pair(base, market)
+    exchange = "btcturk" if market == "crypto_tr" else "coinbase"
+    ticker, history = await asyncio.gather(
+        call_mcp_safe(
+            "get_crypto_market",
+            {"symbol": pair, "exchange": exchange, "data_type": "ticker"},
+            timeout=12,
+        ),
+        call_mcp_safe(
+            "get_historical_data",
+            {"symbol": pair, "market": market, "period": "5d"},
+            timeout=12,
+        ),
+    )
+    t = _extract_ticker(ticker)
+    price = _safe_float(t.get("price") or t.get("last") or t.get("lastPrice"))
+    if price is None:
+        bars = history.get("data", []) if isinstance(history, dict) else []
+        if bars:
+            bars = sorted(bars, key=lambda b: str(b.get("date", "")))
+            price = _safe_float(bars[-1].get("close"))
+    change_pct = _safe_float(
+        t.get("daily_return") or t.get("dailyPercent") or
+        t.get("daily") or t.get("percentChange24h")
+    ) or _latest_change_from_history(history)
+    return {
+        "symbol": base,
+        "pair": pair,
+        "name": item.get("name", base),
+        "market": market,
+        "exchange": exchange,
+        "price": price,
+        "change_pct": change_pct,
+        "currency": "TRY" if market == "crypto_tr" else "USD",
+        "volume_24h": _safe_float(t.get("volume_24h") or t.get("volume24h") or t.get("volume")),
+        "high_24h": _safe_float(t.get("high_24h") or t.get("high24h")),
+        "low_24h": _safe_float(t.get("low_24h") or t.get("low24h")),
+    }
+
+
+@app.get("/api/crypto/list")
+async def crypto_list(market: str = "crypto_global", limit: int = 30):
+    mkt = market if market in ("crypto_tr", "crypto_global") else "crypto_global"
+    max_items = max(1, min(limit, len(CRYPTO_UNIVERSE)))
+    universe = CRYPTO_UNIVERSE[:max_items]
+    rows = []
+    for i in range(0, len(universe), 8):
+        batch = universe[i:i + 8]
+        rows.extend(await asyncio.gather(*[_crypto_snapshot(item, mkt) for item in batch]))
+    rows = sorted(
+        rows,
+        key=lambda x: (x.get("change_pct") is None, -(x.get("change_pct") or -999999)),
+    )
+    return {"market": mkt, "count": len(rows), "items": rows}
+
+
+@app.get("/api/crypto/analysis")
+async def crypto_analysis(
+    symbol: str,
+    market: str = "crypto_global",
+    exchange: Optional[str] = None,
+    timeframe: str = "1d",
+    period: str = "3mo",
+):
+    """Ticker + technical + history bundle for the crypto dashboard."""
+    sym = symbol.upper().strip()
+    mkt = market if market in ("crypto_tr", "crypto_global") else "crypto_global"
+    pair = _crypto_pair(sym, mkt)
+    exc = exchange or ("btcturk" if mkt == "crypto_tr" else "coinbase")
+    if mkt == "crypto_global":
+        exc = "coinbase"
+
+    ticker_task = call_mcp_safe(
+        "get_crypto_market",
+        {"symbol": pair, "exchange": exc, "data_type": "ticker"},
+        timeout=15,
+    )
+    tech_task = call_mcp_safe(
+        "get_technical_analysis",
+        {"symbol": pair, "market": mkt, "timeframe": timeframe},
+        timeout=20,
+    )
+    history_task = call_mcp_safe(
+        "get_historical_data",
+        {"symbol": pair, "market": mkt, "period": period},
+        timeout=20,
+    )
+    ticker, tech, history = await asyncio.gather(ticker_task, tech_task, history_task)
+
+    tv_signals = {}
+    cp = _safe_float(tech.get("current_price")) if isinstance(tech, dict) else None
+    bars = history.get("data", []) if isinstance(history, dict) else []
+    if cp and bars:
+        try:
+            tv_signals = _compute_tv_signals(cp, tech, bars)
+        except Exception:
+            tv_signals = {"error": "Teknik sinyal hesaplanamadı"}
+
+    return {
+        "symbol": sym,
+        "pair": pair,
+        "market": mkt,
+        "exchange": exc,
+        "ticker": ticker,
+        "technical": tech,
+        "history": history,
+        "tv_signals": tv_signals,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -1090,7 +1893,32 @@ async def crypto_detail(symbol: str, exchange: str = "btcturk"):
 
 @app.get("/api/search")
 async def search(q: str, market: str = "bist"):
-    return await call_mcp("search_symbol", {"query": q, "market": market, "limit": 15})
+    query = q.upper().strip()
+    result = await call_mcp("search_symbol", {"query": query, "market": market, "limit": 15})
+    if _extract_list(result):
+        return result
+
+    # BIST users often type the common 3-letter root, e.g. THY instead of THYAO.
+    if market == "bist" and len(query) == 3:
+        fallback = await call_mcp("search_symbol", {"query": f"{query}AO", "market": market, "limit": 15})
+        if _extract_list(fallback):
+            return fallback
+
+    # TEFAS search may miss exact fund codes; verify the code directly.
+    if market == "fund" and len(query) >= 2:
+        fund = await call_mcp_safe("get_fund_data", {"symbol": query, "include_performance": False}, timeout=10)
+        fd = fund.get("fund") if isinstance(fund, dict) else None
+        if isinstance(fd, dict) and (fd.get("code") or fd.get("symbol")):
+            return {
+                "matches": [{
+                    "symbol": (fd.get("code") or query).upper(),
+                    "name": fd.get("name") or fd.get("fon_adi") or query,
+                    "market": "fund",
+                    "asset_type": "fund",
+                }],
+                "total_count": 1,
+            }
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -1160,15 +1988,61 @@ def _scan_to_screener(item: dict) -> dict:
     }
 
 
+_BIST_SCREENER_FALLBACKS: Dict[str, List[Dict[str, str]]] = {
+    "undervalued": [
+        {"scan_preset": "oversold_high_volume", "index": "XU100"},
+        {"scan_preset": "high_volume", "index": "XU100"},
+        {"scan_preset": "high_volume", "index": "XU030"},
+    ],
+    "low_pe": [
+        {"scan_preset": "high_volume", "index": "XU100"},
+        {"scan_preset": "high_volume", "index": "XU030"},
+        {"scan_preset": "bullish_momentum", "index": "XU100"},
+    ],
+    "value_stocks": [
+        {"scan_preset": "high_volume", "index": "XU100"},
+        {"scan_preset": "high_volume", "index": "XU030"},
+    ],
+}
+
+
+async def _get_bist_screener_items(preset: str) -> list:
+    """BIST taramada boş dönen presetler için çalışan listelerden yedek üret."""
+    cfg = _BIST_SCREENER_MAP[preset]
+    scan_plan = [cfg] + _BIST_SCREENER_FALLBACKS.get(preset, [])
+
+    seen: Dict[str, dict] = {}
+    for scan_cfg in scan_plan:
+        raw = await call_mcp_safe(
+            "scan_stocks",
+            {"preset": scan_cfg["scan_preset"], "index": scan_cfg["index"]},
+            timeout=20,
+        )
+        raw_items = _extract_list(raw) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+        for raw_item in raw_items:
+            if not isinstance(raw_item, dict):
+                continue
+            item = _scan_to_screener(raw_item)
+            symbol = (item.get("symbol") or "").upper()
+            if symbol and symbol not in seen:
+                seen[symbol] = item
+
+        if seen and scan_cfg is cfg:
+            break
+
+    items = list(seen.values())
+    if preset == "low_pe":
+        with_pe = [item for item in items if (item.get("pe_ratio") or 0) > 0]
+        if with_pe:
+            items = with_pe
+    return _sort_screener(items, preset)
+
+
 @app.get("/api/screener")
 async def screener(market: str = "us", preset: Optional[str] = None, limit: int = 30):
     # BIST için scan_stocks kullan — screen_securities preseti desteklemiyor
     if market == "bist" and preset and preset in _BIST_SCREENER_MAP:
-        cfg = _BIST_SCREENER_MAP[preset]
-        raw = await call_mcp("scan_stocks", {"preset": cfg["scan_preset"], "index": cfg["index"]})
-        items = _extract_list(raw) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
-        items = [_scan_to_screener(it) for it in items]
-        items = _sort_screener(items, preset)
+        items = await _get_bist_screener_items(preset)
         return items[:limit]
 
     # US veya preset'siz BIST
@@ -1320,11 +2194,7 @@ async def index_data(symbol: str = "XU100"):
 @app.get("/api/status")
 async def status():
     ready = mcp is not None and mcp._ready
-    return {
-        "mcp_ready": ready,
-        "mcp_url": MCP_URL,
-        "session_id": (mcp.session_id if mcp else None),
-    }
+    return {"mcp_ready": ready}
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -1334,6 +2204,33 @@ async def status():
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    if _is_authenticated(request):
+        return RedirectResponse("/", status_code=302)
+    return HTMLResponse(_LOGIN_HTML.replace("{error}", ""))
+
+
+@app.post("/login")
+async def do_login(password: str = Form(...)):
+    if SITE_PASSWORD and hmac.compare_digest(password, SITE_PASSWORD):
+        resp = RedirectResponse("/", status_code=302)
+        resp.set_cookie(
+            "session", _session_token(),
+            httponly=True, samesite="lax", max_age=86400 * 30,
+        )
+        return resp
+    err = '<p class="err">Yanlış şifre</p>'
+    return HTMLResponse(_LOGIN_HTML.replace("{error}", err), status_code=401)
+
+
+@app.post("/logout")
+async def logout():
+    resp = RedirectResponse("/login", status_code=302)
+    resp.delete_cookie("session")
+    return resp
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
@@ -1341,4 +2238,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host="0.0.0.0", port=8000)

@@ -75,6 +75,11 @@ input::placeholder { color: #334155; }
 .sr-row:hover { background: #111e32; }
 
 .indicator-card { background:#060c16; border:1px solid #1e2d45; border-radius:10px; padding:14px; }
+.advice-note {
+  color:#64748b; font-size:.72rem; line-height:1.45;
+  background:#060c16; border:1px solid #1e2d45; border-radius:8px;
+  padding:7px 10px;
+}
 
 /* Glow effect for price changes */
 @keyframes glowGreen { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 18px #22c55e40} }
@@ -120,13 +125,18 @@ input::placeholder { color: #334155; }
   <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto">
     <button class="tab-btn active" id="tab-portfolio"   onclick="showTab('portfolio')">İzleme Listesi</button>
     <button class="tab-btn"        id="tab-myportfolio" onclick="showTab('myportfolio')">📈 Portföyüm</button>
-    <button class="tab-btn"        id="tab-screener"    onclick="showTab('screener')">Hisse Tarayıcı</button>
+    <button class="tab-btn"        id="tab-whatif"      onclick="showTab('whatif')">Ne Olurdu?</button>
+    <button class="tab-btn"        id="tab-crypto"      onclick="showTab('crypto')">₿ Kripto</button>
+    <button class="tab-btn"        id="tab-screener"    onclick="showTab('screener')">Piyasa Tarayıcı</button>
     <button class="tab-btn"        id="tab-scanner"     onclick="showTab('scanner')">Teknik Tarayıcı</button>
   </div>
 </nav>
 
 <!-- ════════════════════ MAIN ════════════════════ -->
 <main class="max-w-7xl mx-auto px-4 py-6 pb-24">
+  <div class="advice-note mb-5">
+    Buradaki veriler ve analizler bilgilendirme amaçlıdır; yatırım tavsiyesi değildir.
+  </div>
 
   <!-- ── PORTFOLIO TAB ── -->
   <div id="content-portfolio">
@@ -165,6 +175,111 @@ input::placeholder { color: #334155; }
     </div>
   </div>
 
+  <!-- ── WHAT IF TAB ── -->
+  <div id="content-whatif" class="hidden fade-in">
+    <div class="card p-5 mb-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[160px_1fr_180px_160px_auto] gap-3 items-end">
+        <div>
+          <label class="block text-xs text-slate-500 mb-1.5 font-medium">Piyasa</label>
+          <select id="wi-market">
+            <option value="bist">BIST Hisse</option>
+            <option value="fund">Fon</option>
+            <option value="us">ABD Hisse</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1.5 font-medium">Sembol / Fon Kodu</label>
+          <input id="wi-symbol" type="text" placeholder="Örn: THYAO, PBR, AAPL" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1.5 font-medium">Para Miktarı</label>
+          <input id="wi-amount" type="number" min="1" step="100" value="10000">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1.5 font-medium">Dönem</label>
+          <select id="wi-months">
+            <option value="1">1 Ay</option>
+            <option value="2">2 Ay</option>
+            <option value="3">3 Ay</option>
+            <option value="4">4 Ay</option>
+            <option value="5">5 Ay</option>
+            <option value="6">6 Ay</option>
+            <option value="12">1 Sene</option>
+          </select>
+        </div>
+        <button onclick="runWhatIf()" class="btn-primary whitespace-nowrap">Hesapla</button>
+      </div>
+    </div>
+    <div id="whatif-out">
+      <div class="text-center py-16 text-slate-500">Bir hisse veya fon seçip tutar girin</div>
+    </div>
+  </div>
+
+  <!-- ── CRYPTO TAB ── -->
+  <div id="content-crypto" class="hidden fade-in">
+    <div class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
+      <section>
+        <div class="card p-4 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-bold text-slate-300">Günlük Kripto Listesi</h2>
+            <button onclick="loadCryptoDashboard(true)" class="btn-ghost text-sm px-3 py-2">Yenile</button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mb-4">
+            <button class="market-btn active" id="crypto-market-global" onclick="setCryptoMarket('crypto_global')">USD</button>
+            <button class="market-btn" id="crypto-market-tr" onclick="setCryptoMarket('crypto_tr')">TRY</button>
+          </div>
+          <div id="crypto-list" class="space-y-2">
+            <div class="text-center py-8 text-slate-500 text-sm">Kripto varlıklar yükleniyor…</div>
+          </div>
+        </div>
+
+        <div class="card p-4">
+          <div class="text-xs text-slate-500 mb-3 font-semibold">Hızlı Ekle</div>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="quickAddCrypto('BTC')" class="market-btn">BTC</button>
+            <button onclick="quickAddCrypto('ETH')" class="market-btn">ETH</button>
+            <button onclick="quickAddCrypto('SOL')" class="market-btn">SOL</button>
+            <button onclick="quickAddCrypto('BNB')" class="market-btn">BNB</button>
+            <button onclick="quickAddCrypto('XRP')" class="market-btn">XRP</button>
+            <button onclick="quickAddCrypto('AVAX')" class="market-btn">AVAX</button>
+          </div>
+          <button onclick="openCryptoAdd()" class="btn-primary w-full mt-3 text-sm py-2">Başka Coin Ekle</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="card p-5 mb-5">
+          <div class="flex flex-wrap gap-3 items-end">
+            <div class="flex-1 min-w-[120px]">
+              <label class="block text-xs text-slate-500 mb-1.5 font-medium">Sembol</label>
+              <input id="crypto-symbol" type="text" value="BTC" oninput="this.value=this.value.toUpperCase()">
+            </div>
+            <div class="flex-1 min-w-[140px]">
+              <label class="block text-xs text-slate-500 mb-1.5 font-medium">Piyasa</label>
+              <select id="crypto-analysis-market">
+                <option value="crypto_global">USD / Coinbase</option>
+                <option value="crypto_tr">TRY / BtcTurk</option>
+              </select>
+            </div>
+            <div class="flex-1 min-w-[120px]">
+              <label class="block text-xs text-slate-500 mb-1.5 font-medium">Zaman</label>
+              <select id="crypto-timeframe">
+                <option value="1d">1 Gün</option>
+                <option value="4h">4 Saat</option>
+                <option value="1h">1 Saat</option>
+                <option value="15m">15 Dakika</option>
+              </select>
+            </div>
+            <button onclick="runCryptoAnalysis()" class="btn-primary whitespace-nowrap">Teknik Analiz</button>
+          </div>
+        </div>
+        <div id="crypto-analysis-out">
+          <div class="text-center py-16 text-slate-500">Coin seçip teknik analiz çalıştırın</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
   <!-- ── SCREENER TAB ── -->
   <div id="content-screener" class="hidden fade-in">
     <div class="card p-5 mb-5">
@@ -174,9 +289,11 @@ input::placeholder { color: #334155; }
           <select id="sc-market" onchange="updateScreenerPresets()">
             <option value="us">🇺🇸 ABD Hisseleri</option>
             <option value="bist">🇹🇷 BIST</option>
+            <option value="crypto_global">₿ Kripto USD</option>
+            <option value="crypto_tr">₿ Kripto TRY</option>
           </select>
         </div>
-        <div class="flex-1 min-w-[200px]">
+        <div class="flex-1 min-w-[200px]" id="sc-preset-wrap">
           <label class="block text-xs text-slate-500 mb-1.5 font-medium">Hazır Şablon</label>
           <select id="sc-preset"></select>
         </div>
@@ -184,7 +301,7 @@ input::placeholder { color: #334155; }
       </div>
     </div>
     <div id="screener-out">
-      <div class="text-center py-16 text-slate-500">Piyasa ve şablon seçin, ardından <strong>Tara</strong>'ya tıklayın</div>
+      <div class="text-center py-16 text-slate-500">Piyasa seçin, ardından <strong>Tara</strong>'ya tıklayın</div>
     </div>
   </div>
 
@@ -295,6 +412,9 @@ input::placeholder { color: #334155; }
       </div>
 
       <div id="pf-error" class="text-red-400 text-sm hidden"></div>
+      <div class="advice-note">
+        Girdiğiniz pozisyonlar ve hesaplanan sonuçlar bilgilendirme amaçlıdır; yatırım tavsiyesi değildir.
+      </div>
 
       <div class="flex gap-3 pt-2">
         <button onclick="closePfModal()" class="flex-1 py-2.5 rounded-lg text-slate-400 border border-slate-700 hover:border-slate-500">İptal</button>
@@ -350,6 +470,9 @@ input::placeholder { color: #334155; }
     <p class="text-center text-xs text-slate-600 mt-3">
       Bulunamadıysa sembolü yazıp <button onclick="addManual()" class="text-blue-400 hover:underline">elle ekle</button>
     </p>
+    <div class="advice-note mt-4">
+      Bu uygulamadaki veriler bilgilendirme amaçlıdır; yatırım tavsiyesi değildir.
+    </div>
   </div>
 </div>
 
@@ -379,7 +502,12 @@ input::placeholder { color: #334155; }
       <button class="dtab-btn active" id="dtab-chart"     onclick="showDTab('chart')">Grafik</button>
       <button class="dtab-btn"        id="dtab-technical" onclick="showDTab('technical')">Teknik Analiz</button>
       <button class="dtab-btn"        id="dtab-analyst"   onclick="showDTab('analyst')">Analist</button>
-      <button class="dtab-btn"        id="dtab-info"      onclick="showDTab('info')">Bilgi</button>
+      <button class="dtab-btn"        id="dtab-news"      onclick="showDTab('news')">KAP Haberleri</button>
+    </div>
+    <div class="px-5 py-3 border-b" style="border-color:#1e2d45">
+      <div class="advice-note">
+        Bu ekrandaki grafik, analiz ve haberler bilgilendirme amaçlıdır; yatırım tavsiyesi değildir.
+      </div>
     </div>
 
     <!-- Scrollable content -->
@@ -396,12 +524,27 @@ input::placeholder { color: #334155; }
           <button class="period-btn" onclick="loadChart('1y')">1Y</button>
           <button class="period-btn" onclick="loadChart('2y')">2Y</button>
         </div>
+        <div id="chart-indicator-controls" class="flex gap-1.5 mb-4 flex-wrap">
+          <button class="period-btn indicator-toggle" data-indicator="rsi" onclick="toggleChartIndicator('rsi')">RSI</button>
+          <button class="period-btn indicator-toggle" data-indicator="macd" onclick="toggleChartIndicator('macd')">MACD</button>
+          <button class="period-btn indicator-toggle" data-indicator="sma20" onclick="toggleChartIndicator('sma20')">SMA 20</button>
+          <button class="period-btn indicator-toggle" data-indicator="ema20" onclick="toggleChartIndicator('ema20')">EMA 20</button>
+          <button class="period-btn indicator-toggle" data-indicator="ema50" onclick="toggleChartIndicator('ema50')">EMA 50</button>
+        </div>
         <div class="relative" style="height:260px">
           <canvas id="price-canvas"></canvas>
           <div id="chart-overlay" class="absolute inset-0 flex items-center justify-center hidden"
             style="background:rgba(8,13,20,.6);border-radius:8px">
             <div class="text-slate-400 text-sm" id="chart-overlay-msg">Yükleniyor…</div>
           </div>
+        </div>
+        <div id="rsi-chart-pane" class="indicator-card mt-3 hidden">
+          <div class="text-xs text-slate-500 mb-2 font-semibold">RSI 14</div>
+          <div style="height:120px"><canvas id="rsi-canvas"></canvas></div>
+        </div>
+        <div id="macd-chart-pane" class="indicator-card mt-3 hidden">
+          <div class="text-xs text-slate-500 mb-2 font-semibold">MACD 12 / 26 / 9</div>
+          <div style="height:130px"><canvas id="macd-canvas"></canvas></div>
         </div>
       </div>
 
@@ -415,9 +558,9 @@ input::placeholder { color: #334155; }
         <div id="analyst-out" class="text-center py-10 text-slate-500">Yükleniyor…</div>
       </div>
 
-      <!-- Info -->
-      <div id="dc-info" class="p-5 hidden">
-        <div id="info-out" class="text-center py-10 text-slate-500">Yükleniyor…</div>
+      <!-- KAP News -->
+      <div id="dc-news" class="p-5 hidden">
+        <div id="news-out" class="text-center py-10 text-slate-500">Yükleniyor…</div>
       </div>
 
     </div>
@@ -437,6 +580,16 @@ input::placeholder { color: #334155; }
 
 <!-- ════════════════════ JS ════════════════════ -->
 <script>
+// Dosya olarak açılırsa API isteklerini çalışan yerel sunucuya yönlendir.
+const API_BASE = location.protocol === 'file:' ? 'http://127.0.0.1:8765' : '';
+const nativeFetch = window.fetch.bind(window);
+window.fetch = (input, init) => {
+  if (typeof input === 'string' && input.startsWith('/api/')) {
+    return nativeFetch(API_BASE + input, init);
+  }
+  return nativeFetch(input, init);
+};
+
 // ─────────────────────────────── STATE ──────────────────────────────
 const S = {
   watchlist: [],
@@ -445,6 +598,11 @@ const S = {
   curSym: null,
   curMkt: null,
   curExc: null,
+  cryptoMarket: 'crypto_global',
+  cryptoRows: [],
+  chartPeriod: '1mo',
+  chartIndicators: new Set(),
+  chartData: null,
   priceChart: null,
   srTimer: null,
   refreshTimer: null,
@@ -460,11 +618,12 @@ async function init() {
 
 // ─────────────────────────────── TABS ──────────────────────────────
 function showTab(id) {
-  ['portfolio','myportfolio','screener','scanner'].forEach(t => {
+  ['portfolio','myportfolio','whatif','crypto','screener','scanner'].forEach(t => {
     document.getElementById(`tab-${t}`).classList.toggle('active', t === id);
     document.getElementById(`content-${t}`).classList.toggle('hidden', t !== id);
   });
   if (id === 'myportfolio') loadMyPortfolio();
+  if (id === 'crypto') loadCryptoDashboard();
 }
 
 // ─────────────────────────────── WATCHLIST ──────────────────────────────
@@ -531,6 +690,7 @@ function makeCard(a) {
   const chgStr = chg != null ? `${arrow} ${(chg > 0 ? '+' : '') + fmt(chg, 2)}%` : '-- %';
   const priceStr = a.price != null ? fmtPrice(a.price, a.currency) : '---';
   const badge = mktBadge(a.market);
+  const subtitle = assetSubtitle(a);
 
   // Tarih/saat etiketi
   let timeLabel = '';
@@ -545,8 +705,8 @@ function makeCard(a) {
   card.innerHTML = `
     <div class="flex justify-between items-start mb-3">
       <div class="min-w-0">
-        <div class="font-extrabold text-base truncate">${a.symbol}</div>
-        <div class="text-xs text-slate-500 truncate max-w-[160px]">${a.name || ''}</div>
+        <div class="font-extrabold text-base truncate">${escHtml(a.symbol)}</div>
+        <div class="text-xs text-slate-500 truncate max-w-[180px]">${escHtml(subtitle)}</div>
       </div>
       <span class="text-xs px-2 py-0.5 rounded-full font-semibold ml-2 shrink-0 ${badge.cls}">${badge.label}</span>
     </div>
@@ -554,7 +714,7 @@ function makeCard(a) {
     <div class="text-sm font-semibold ${chgClass}">${chgStr}</div>
     <div class="mt-3 flex justify-between items-center">
       ${timeLabel ? `<span class="text-xs text-slate-600">${timeLabel}</span>` : '<span></span>'}
-      <button onclick="event.stopPropagation();removeAsset('${a.symbol}','${a.market}')"
+      <button onclick="event.stopPropagation();removeAsset('${escJs(a.symbol)}','${escJs(a.market)}')"
         class="text-slate-600 hover:text-red-400 text-xs p-1 transition-colors">✕</button>
     </div>
   `;
@@ -579,6 +739,251 @@ function renderSummary() {
   `).join('');
 }
 
+// ─────────────────────────────── WHAT IF ──────────────────────────────
+async function runWhatIf() {
+  const out = document.getElementById('whatif-out');
+  const market = document.getElementById('wi-market').value;
+  const symbol = document.getElementById('wi-symbol').value.trim().toUpperCase();
+  const amount = parseFloat(document.getElementById('wi-amount').value);
+  const months = parseInt(document.getElementById('wi-months').value, 10);
+  if (!symbol || !amount || amount <= 0) {
+    toast('Sembol ve tutar girin', 'error');
+    return;
+  }
+  out.innerHTML = '<div class="text-center py-12 text-slate-500">Hesaplanıyor… <span class="inline-block spin">⟳</span></div>';
+  try {
+    const r = await fetch(`/api/what-if?symbol=${encodeURIComponent(symbol)}&market=${market}&amount=${amount}&months=${months}`);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || 'Hesaplama yapılamadı');
+    }
+    const d = await r.json();
+    out.innerHTML = renderWhatIf(d);
+  } catch (e) {
+    out.innerHTML = `<div class="text-red-400 text-center py-8">Hata: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderWhatIf(d) {
+  const cur = currencySymbol(d.currency);
+  const profitColor = d.profit >= 0 ? '#22c55e' : '#ef4444';
+  const periodLabel = d.months === 12 ? '1 sene' : `${d.months} ay`;
+  const fullName = [d.name, d.category].filter(Boolean).join(' · ');
+  const metric = (label, value, color = '#e2e8f0') => `<div class="indicator-card">
+    <div class="text-xs text-slate-500 mb-1">${label}</div>
+    <div class="text-xl font-black" style="color:${color}">${value}</div>
+  </div>`;
+  return `<div class="space-y-4">
+    <div class="indicator-card">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-xs text-slate-500 mb-1">Seçilen Varlık</div>
+          <div class="text-2xl font-black text-slate-100">${esc(d.symbol)}</div>
+          <div class="text-sm text-slate-400 mt-1">${esc(fullName || d.symbol)}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-slate-500 mb-1">Dönem</div>
+          <div class="text-lg font-bold text-blue-300">${periodLabel}</div>
+          <div class="text-xs text-slate-600">${esc(d.start_date)} - ${esc(d.end_date)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      ${metric('Yatırılan Para', `${cur}${fmt(d.amount, 2)}`, '#60a5fa')}
+      ${metric('Bugünkü Değer', `${cur}${fmt(d.current_value, 2)}`, d.current_value >= d.amount ? '#22c55e' : '#ef4444')}
+      ${metric('Kar / Zarar', `${d.profit >= 0 ? '+' : '-'}${cur}${fmt(Math.abs(d.profit), 2)}`, profitColor)}
+      ${metric('Getiri', pct(d.return_percent), d.return_percent >= 0 ? '#22c55e' : '#ef4444')}
+    </div>
+    <div class="indicator-card">
+      ${infoTable([
+        ['Başlangıç Fiyatı', `${cur}${fmt(d.start_price, 4)}`],
+        ['Bugünkü Fiyat', `${cur}${fmt(d.end_price, 4)}`],
+        ['Alınabilecek Adet/Pay', fmt(d.units, 4)],
+      ])}
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────── CRYPTO DASHBOARD ──────────────────────────────
+async function loadCryptoDashboard(force=false) {
+  const box = document.getElementById('crypto-list');
+  if (box) {
+    box.innerHTML = '<div class="text-center py-8 text-slate-500 text-sm">Günlük değişimler yükleniyor… <span class="inline-block spin">⟳</span></div>';
+  }
+  try {
+    const r = await fetch(`/api/crypto/list?market=${S.cryptoMarket}&limit=30`);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || r.statusText);
+    S.cryptoRows = d.items || [];
+    renderCryptoList();
+    const first = S.cryptoRows[0];
+    if ((force || !document.getElementById('crypto-symbol').value) && first) {
+      selectCrypto(first.symbol, first.market, false);
+    }
+  } catch (e) {
+    if (box) {
+      box.innerHTML = `<div class="text-red-400 text-center py-8 text-sm">Kripto listesi alınamadı: ${escHtml(e.message)}</div>`;
+    }
+  }
+}
+
+function setCryptoMarket(market) {
+  S.cryptoMarket = market;
+  document.getElementById('crypto-market-global').classList.toggle('active', market === 'crypto_global');
+  document.getElementById('crypto-market-tr').classList.toggle('active', market === 'crypto_tr');
+  document.getElementById('crypto-analysis-market').value = market;
+  loadCryptoDashboard(true);
+}
+
+function renderCryptoList() {
+  const box = document.getElementById('crypto-list');
+  if (!box) return;
+  const list = S.cryptoRows;
+  if (!list.length) {
+    box.innerHTML = `<div class="text-center py-8 text-slate-500 text-sm">
+      <div class="text-3xl mb-2 opacity-40">₿</div>
+      <div class="mb-3">Liste verisi alınamadı</div>
+      <button onclick="loadCryptoDashboard(true)" class="btn-ghost text-sm px-4 py-2">Tekrar Dene</button>
+    </div>`;
+    return;
+  }
+  box.innerHTML = `<div class="overflow-hidden rounded-lg" style="border:1px solid #1e2d45">
+    ${list.map((a, index) => {
+    const chg = a.change_pct;
+    const chgC = chg == null ? 'neu' : chg > 0 ? 'pos' : chg < 0 ? 'neg' : 'neu';
+    const arrow = chg > 0 ? '▲' : chg < 0 ? '▼' : '';
+    return `<button onclick="selectCrypto('${escJs(a.symbol)}','${escJs(a.market)}')"
+      class="w-full text-left p-3 transition-colors" style="background:${index % 2 ? '#08111f' : '#060c16'};border-bottom:1px solid #111e32">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="font-bold text-sm">${index + 1}. ${escHtml(a.symbol)}</div>
+          <div class="text-xs text-slate-500 truncate">${escHtml(a.name || a.symbol)}</div>
+        </div>
+        <div class="text-right shrink-0">
+          <div class="font-black text-sm">${a.price != null ? fmtPrice(a.price, a.currency) : '--'}</div>
+          <div class="text-xs font-semibold ${chgC}">${chg != null ? `${arrow} ${chg > 0 ? '+' : ''}${fmt(chg, 2)}% günlük` : 'değişim yok'}</div>
+        </div>
+      </div>
+    </button>`;
+  }).join('')}</div>`;
+}
+
+function openCryptoAdd() {
+  setMkt(S.cryptoMarket);
+  openAddModal();
+}
+
+async function quickAddCrypto(symbol) {
+  const oldMkt = S.mkt;
+  S.mkt = S.cryptoMarket;
+  await addAsset(symbol, symbol);
+  S.mkt = oldMkt;
+}
+
+function selectCrypto(symbol, market, run=true) {
+  document.getElementById('crypto-symbol').value = symbol;
+  document.getElementById('crypto-analysis-market').value = market;
+  S.cryptoMarket = market;
+  document.getElementById('crypto-market-global').classList.toggle('active', market === 'crypto_global');
+  document.getElementById('crypto-market-tr').classList.toggle('active', market === 'crypto_tr');
+  if (run) runCryptoAnalysis();
+}
+
+async function runCryptoAnalysis() {
+  const symbol = document.getElementById('crypto-symbol').value.trim().toUpperCase();
+  const market = document.getElementById('crypto-analysis-market').value;
+  const timeframe = document.getElementById('crypto-timeframe').value;
+  const out = document.getElementById('crypto-analysis-out');
+  if (!symbol) {
+    out.innerHTML = '<div class="text-red-400 text-center py-12">Sembol giriniz</div>';
+    return;
+  }
+  out.innerHTML = '<div class="text-center py-12 text-slate-500">Kripto teknik analiz yükleniyor… <span class="inline-block spin">⟳</span></div>';
+  try {
+    const data = await fetchJsonWithRetry(
+      `/api/crypto/analysis?symbol=${encodeURIComponent(symbol)}&market=${market}&timeframe=${timeframe}`,
+      2,
+      25000
+    );
+    out.innerHTML = renderCryptoAnalysis(data);
+  } catch (e) {
+    out.innerHTML = renderCryptoAnalysisError(symbol, market, e);
+  }
+}
+
+async function fetchJsonWithRetry(url, attempts=2, timeoutMs=20000) {
+  let lastError;
+  for (let i = 0; i < attempts; i++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const r = await fetch(url, { signal: controller.signal });
+      const text = await r.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; }
+      catch (_) { data = { detail: text.slice(0, 180) || 'Geçersiz yanıt' }; }
+      if (!r.ok) throw new Error(data.detail || r.statusText || `HTTP ${r.status}`);
+      return data;
+    } catch (e) {
+      lastError = e;
+      await new Promise(resolve => setTimeout(resolve, 700));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastError;
+}
+
+function renderCryptoAnalysisError(symbol, market, error) {
+  const msg = error?.name === 'AbortError'
+    ? 'İstek zaman aşımına uğradı'
+    : (error?.message || 'Bağlantı kurulamadı');
+  return `<div class="card p-8 text-center">
+    <div class="text-red-400 font-bold mb-2">Teknik analiz alınamadı</div>
+    <div class="text-sm text-slate-500 mb-5">${escHtml(msg)}</div>
+    <div class="flex justify-center gap-2">
+      <button onclick="runCryptoAnalysis()" class="btn-primary px-5 py-2">Tekrar Dene</button>
+      <button onclick="loadCryptoDashboard(true)" class="btn-ghost px-5 py-2">Listeyi Yenile</button>
+    </div>
+    <div class="text-xs text-slate-600 mt-4">${escHtml(symbol)} · ${market === 'crypto_tr' ? 'TRY' : 'USD'}</div>
+  </div>`;
+}
+
+function renderCryptoAnalysis(data) {
+  const ticker = data.ticker?.ticker || (data.ticker?.tickers || [])[0] || {};
+  const tech = data.technical || {};
+  const tv = data.tv_signals || {};
+  const price = ticker.price ?? ticker.last ?? ticker.lastPrice ?? tech.current_price;
+  const high = ticker.high_24h ?? ticker.high24h;
+  const low = ticker.low_24h ?? ticker.low24h;
+  const volume = ticker.volume_24h ?? ticker.volume24h ?? ticker.volume;
+  const cur = data.market === 'crypto_tr' ? 'TRY' : 'USD';
+  const header = `<div class="card p-5 mb-4">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-2xl font-black">${escHtml(data.symbol)}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full font-semibold badge-crypto">${data.market === 'crypto_tr' ? 'TRY' : 'USD'}</span>
+        </div>
+        <div class="text-xs text-slate-500">${escHtml(data.exchange || '')}</div>
+      </div>
+      <div class="text-right">
+        <div class="text-3xl font-black">${price != null ? fmtPrice(price, cur) : '--'}</div>
+        <div class="text-xs text-slate-500">Canlı fiyat</div>
+      </div>
+    </div>
+    <div class="grid grid-cols-3 gap-3 mt-5">
+      <div class="indicator-card"><div class="text-xs text-slate-500 mb-1">24s Yüksek</div><div class="font-bold">${high != null ? fmtPrice(high, cur) : '--'}</div></div>
+      <div class="indicator-card"><div class="text-xs text-slate-500 mb-1">24s Düşük</div><div class="font-bold">${low != null ? fmtPrice(low, cur) : '--'}</div></div>
+      <div class="indicator-card"><div class="text-xs text-slate-500 mb-1">Hacim</div><div class="font-bold">${volume != null ? fmtBig(parseFloat(volume)) : '--'}</div></div>
+    </div>
+  </div>`;
+  const technical = Object.keys(tech).length
+    ? renderTVPanel(tv) + renderTech(tech, data.history || {})
+    : '<div class="card p-8 text-center text-slate-500">Teknik analiz verisi alınamadı</div>';
+  return header + technical;
+}
+
 // ─────────────────────────────── ADD MODAL ──────────────────────────────
 function openAddModal() {
   document.getElementById('add-modal').classList.remove('hidden');
@@ -597,6 +1002,7 @@ function setMkt(m) {
   });
   const show = m === 'crypto_tr' || m === 'crypto_global';
   document.getElementById('exchange-row').classList.toggle('hidden', !show);
+  document.getElementById('exc-select').value = m === 'crypto_global' ? 'coinbase' : 'btcturk';
   const q = document.getElementById('add-search').value.trim();
   if (q.length >= 2) doSearch(q);
 }
@@ -637,9 +1043,9 @@ function renderSearchResults(data, q) {
   box.innerHTML = items.slice(0,12).map(it => {
     const sym  = (it.symbol || it.code || it.ticker || it.fon_kodu || '').toString().toUpperCase();
     const name = (it.name || it.long_name || it.fon_adi || it.description || sym).toString();
-    return `<div class="sr-row px-4 py-2.5" onclick="addAsset('${esc(sym)}','${esc(name.substring(0,60))}')">
-      <div class="font-semibold text-sm">${sym}</div>
-      <div class="text-xs text-slate-500 truncate">${name}</div>
+    return `<div class="sr-row px-4 py-2.5" onclick="addAsset('${escJs(sym)}','${escJs(name.substring(0,60))}')">
+      <div class="font-semibold text-sm">${escHtml(sym)}</div>
+      <div class="text-xs text-slate-500 truncate">${escHtml(name)}</div>
     </div>`;
   }).join('');
   box.classList.remove('hidden');
@@ -648,8 +1054,8 @@ function renderSearchResults(data, q) {
 function showManualOption(q) {
   const box = document.getElementById('add-results');
   const sym = q.toUpperCase();
-  box.innerHTML = `<div class="sr-row px-4 py-2.5" onclick="addAsset('${esc(sym)}','${esc(sym)}')">
-    <div class="font-semibold text-sm">${sym}</div>
+  box.innerHTML = `<div class="sr-row px-4 py-2.5" onclick="addAsset('${escJs(sym)}','${escJs(sym)}')">
+    <div class="font-semibold text-sm">${escHtml(sym)}</div>
     <div class="text-xs text-slate-500">Elle ekle</div>
   </div>`;
   box.classList.remove('hidden');
@@ -661,7 +1067,7 @@ function addManual() {
 }
 
 async function addAsset(sym, name) {
-  const exc = document.getElementById('exc-select').value;
+  const exc = S.mkt === 'crypto_global' ? 'coinbase' : document.getElementById('exc-select').value;
   try {
     const r = await fetch('/api/watchlist', {
       method: 'POST', headers: {'Content-Type':'application/json'},
@@ -690,12 +1096,18 @@ async function removeAsset(sym, mkt) {
 
 // ─────────────────────────────── DETAIL MODAL ──────────────────────────────
 let priceChart = null;
+let rsiChart = null;
+let macdChart = null;
 
 function openDetail(a) {
   S.curSym = a.symbol; S.curMkt = a.market; S.curExc = a.exchange;
+  S.chartPeriod = '1mo';
+  S.chartIndicators = new Set();
+  S.chartData = null;
+  syncIndicatorButtons();
 
   document.getElementById('d-symbol').textContent = a.symbol;
-  document.getElementById('d-name').textContent   = a.name || '';
+  document.getElementById('d-name').textContent   = assetSubtitle(a);
 
   const prEl = document.getElementById('d-price');
   const chEl = document.getElementById('d-change');
@@ -710,6 +1122,15 @@ function openDetail(a) {
   const bd = document.getElementById('d-badge');
   bd.textContent = b.label;
   bd.className = `text-xs px-2 py-0.5 rounded-full font-semibold ${b.cls}`;
+  const analystTab = document.getElementById('dtab-analyst');
+  const newsTab = document.getElementById('dtab-news');
+  if (a.market === 'fund') {
+    analystTab.textContent = 'Performans';
+    newsTab.textContent = 'Karşılaştır';
+  } else {
+    analystTab.textContent = 'Analist';
+    newsTab.textContent = 'KAP Haberleri';
+  }
 
   document.getElementById('detail-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
@@ -721,27 +1142,36 @@ function closeDetail() {
   document.getElementById('detail-modal').classList.add('hidden');
   document.body.style.overflow = '';
   if (priceChart) { priceChart.destroy(); priceChart = null; }
+  if (rsiChart) { rsiChart.destroy(); rsiChart = null; }
+  if (macdChart) { macdChart.destroy(); macdChart = null; }
+  window.priceChart = null;
+  window.rsiChart = null;
+  window.macdChart = null;
   // Clear tab content
-  ['tech-out','analyst-out','info-out'].forEach(id => {
+  ['tech-out','analyst-out','news-out'].forEach(id => {
     document.getElementById(id).innerHTML = '<div class="text-center py-10 text-slate-500">Yükleniyor…</div>';
   });
 }
 
 function showDTab(id) {
-  ['chart','technical','analyst','info'].forEach(t => {
+  ['chart','technical','analyst','news'].forEach(t => {
     document.getElementById(`dtab-${t}`).classList.toggle('active', t === id);
     document.getElementById(`dc-${t}`).classList.toggle('hidden', t !== id);
-  });
-  if (id === 'technical') loadTechnical();
-  if (id === 'analyst')   loadAnalyst();
-  if (id === 'info')      loadInfo();
-}
+	  });
+	  if (id === 'chart' && !S.chartData && S.curSym) loadChart(S.chartPeriod || '1mo');
+	  if (id === 'technical') loadTechnical();
+	  if (id === 'analyst')   loadAnalyst();
+	  if (id === 'news')      loadKapNews();
+	}
 
 async function loadChart(period) {
   if (!S.curSym) return;
+  S.chartPeriod = period;
   document.querySelectorAll('.period-btn').forEach(b => {
     const map = {'1d':'1G','5d':'5G','1mo':'1A','3mo':'3A','6mo':'6A','1y':'1Y','2y':'2Y'};
-    b.classList.toggle('active', b.textContent.trim() === (map[period]||period));
+    if (!b.classList.contains('indicator-toggle')) {
+      b.classList.toggle('active', b.textContent.trim() === (map[period]||period));
+    }
   });
   showChartOverlay('Grafik yükleniyor…');
   try {
@@ -760,12 +1190,31 @@ async function loadChart(period) {
     const mkt = cryptoApiMkt(S.curMkt);
     const r = await fetch(`/api/asset/history?symbol=${S.curSym}&market=${mkt}&period=${period}`);
     const data = await r.json();
+    S.chartData = data;
     drawChart(data);
   } catch (e) { showChartOverlay('Grafik yüklenemedi: ' + e.message); }
 }
 
+function toggleChartIndicator(name) {
+  if (!S.chartIndicators) S.chartIndicators = new Set();
+  if (S.chartIndicators.has(name)) S.chartIndicators.delete(name);
+  else S.chartIndicators.add(name);
+  syncIndicatorButtons();
+  if (S.chartData) drawChart(S.chartData);
+}
+
+function syncIndicatorButtons() {
+  document.querySelectorAll('.indicator-toggle').forEach(btn => {
+    btn.classList.toggle('active', S.chartIndicators?.has(btn.dataset.indicator));
+  });
+}
+
 function drawFundChart(f) {
   if (priceChart) { priceChart.destroy(); priceChart = null; }
+  if (rsiChart) { rsiChart.destroy(); rsiChart = null; }
+  if (macdChart) { macdChart.destroy(); macdChart = null; }
+  document.getElementById('rsi-chart-pane').classList.add('hidden');
+  document.getElementById('macd-chart-pane').classList.add('hidden');
   const periods = [
     { label: 'Günlük',   val: f.daily_return },
     { label: 'Haftalık', val: f.weekly_return },
@@ -774,7 +1223,7 @@ function drawFundChart(f) {
   ].filter(p => p.val != null);
   if (!periods.length) { showChartOverlay('Grafik verisi mevcut değil'); return; }
   const ctx = document.getElementById('price-canvas').getContext('2d');
-  priceChart = new Chart(ctx, {
+	  priceChart = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: periods.map(p => p.label),
@@ -794,8 +1243,9 @@ function drawFundChart(f) {
         y: { ticks: { color: '#64748b', callback: v => v + '%' }, grid: { color: '#1e2d45' } }
       }
     }
-  });
-}
+	  });
+	  window.priceChart = priceChart;
+	}
 
 function cryptoApiMkt(m) {
   if (m === 'crypto_tr')     return 'crypto_tr';
@@ -813,29 +1263,33 @@ function hideChartOverlay() {
 }
 
 function drawChart(data) {
-  let labels = [], vals = [];
+  let rawLabels = [], rawVals = [];
 
   // Various response shapes
   if (data.history) {
     const h = data.history;
     const closes = h.Close || h.close || h.Adj_Close || {};
     const keys = Object.keys(closes);
-    if (keys.length) { labels = keys; vals = keys.map(k => closes[k]); }
+    if (keys.length) { rawLabels = keys; rawVals = keys.map(k => closes[k]); }
   }
-  if (!labels.length && data.data && Array.isArray(data.data)) {
-    labels = data.data.map(d => d.date || d.Date || d.timestamp || d.t);
-    vals   = data.data.map(d => d.close || d.Close || d.price || d.c);
+  if (!rawLabels.length && data.data && Array.isArray(data.data)) {
+    rawLabels = data.data.map(d => d.date || d.Date || d.timestamp || d.t);
+    rawVals   = data.data.map(d => d.close || d.Close || d.price || d.c);
   }
-  if (!labels.length && Array.isArray(data)) {
-    labels = data.map(d => d.date || d.Date || d.t);
-    vals   = data.map(d => d.close || d.Close || d.c || d.price);
+  if (!rawLabels.length && Array.isArray(data)) {
+    rawLabels = data.map(d => d.date || d.Date || d.t);
+    rawVals   = data.map(d => d.close || d.Close || d.c || d.price);
   }
 
-  if (!labels.length) { showChartOverlay('Grafik verisi alınamadı'); return; }
+  const clean = rawLabels.map((label, i) => ({ label, value: parseFloat(rawVals[i]) }))
+    .filter(p => p.label != null && Number.isFinite(p.value));
+  if (!clean.length) { showChartOverlay('Grafik verisi alınamadı'); return; }
   hideChartOverlay();
 
   if (priceChart) priceChart.destroy();
   const ctx = document.getElementById('price-canvas').getContext('2d');
+  const labels = clean.map(p => p.label);
+  const vals = clean.map(p => p.value);
   const last = vals[vals.length-1], first = vals[0];
   const rising = last >= first;
   const lineC = rising ? '#22c55e' : '#ef4444';
@@ -843,35 +1297,204 @@ function drawChart(data) {
 
   const maxPts = 200;
   const step = labels.length > maxPts ? Math.ceil(labels.length / maxPts) : 1;
-  const sl = labels.filter((_,i) => i % step === 0);
-  const sv = vals.filter((_,i) => i % step === 0);
+  const takeStep = arr => arr.filter((_,i) => i % step === 0);
+  const sl = takeStep(labels);
+  const sv = takeStep(vals);
+  const indicators = buildChartIndicatorDatasets(vals, step);
+  const displayLabels = sl.map(l => {
+    const d = new Date(typeof l === 'number' ? l * 1000 : l);
+    return isNaN(d) ? l : d.toLocaleDateString('tr-TR',{month:'short',day:'numeric'});
+  });
 
-  priceChart = new Chart(ctx, {
+	  priceChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: sl.map(l => {
-        const d = new Date(typeof l === 'number' ? l * 1000 : l);
-        return isNaN(d) ? l : d.toLocaleDateString('tr-TR',{month:'short',day:'numeric'});
-      }),
-      datasets: [{ label: S.curSym, data: sv, borderColor: lineC, backgroundColor: fillC,
+      labels: displayLabels,
+      datasets: [{ label: `${S.curSym} Fiyat`, data: sv, borderColor: lineC, backgroundColor: fillC,
         borderWidth: 2, fill: true, tension: .08,
-        pointRadius: sl.length > 60 ? 0 : 2, pointHoverRadius: 5 }]
+        pointRadius: sl.length > 60 ? 0 : 2, pointHoverRadius: 5, yAxisID: 'price' }, ...indicators]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: { display: true, position: 'top', labels: { color:'#94a3b8', boxWidth: 12, usePointStyle: true } },
         tooltip: {
           mode:'index', intersect: false,
-          callbacks: { label: c => ` ${fmt(c.parsed.y, 4)}` }
+          callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y, c.dataset.yAxisID === 'price' ? 4 : 2)}` }
         }
       },
       scales: {
         x: { ticks: { color:'#475569', maxTicksLimit:7 }, grid: { color:'#111e32' } },
-        y: { ticks: { color:'#475569' }, grid: { color:'#111e32' } }
+        price: { position: 'left', ticks: { color:'#475569' }, grid: { color:'#111e32' } }
+      }
+    }
+	  });
+	  window.priceChart = priceChart;
+  drawIndicatorPanes(displayLabels, vals, step);
+		}
+
+function buildChartIndicatorDatasets(vals, step) {
+  const selected = S.chartIndicators || new Set();
+  const takeStep = arr => arr.filter((_,i) => i % step === 0);
+  const defs = [
+    { id:'sma20', label:'SMA 20',  color:'#60a5fa', axis:'price',     data: calcSMA(vals, 20), width:1.5 },
+    { id:'ema20', label:'EMA 20',  color:'#2dd4bf', axis:'price',     data: calcEMA(vals, 20), width:1.5 },
+    { id:'ema50', label:'EMA 50',  color:'#fb7185', axis:'price',     data: calcEMA(vals, 50), width:1.5 },
+  ];
+  return defs.filter(d => selected.has(d.id)).map(d => ({
+    label: d.label,
+    data: takeStep(d.data),
+    borderColor: d.color,
+    backgroundColor: d.color,
+    borderWidth: d.width,
+    borderDash: d.axis === 'indicator' ? [4, 3] : [],
+    fill: false,
+    tension: .08,
+    pointRadius: 0,
+    pointHoverRadius: 4,
+    spanGaps: true,
+    yAxisID: d.axis,
+  }));
+}
+
+function drawIndicatorPanes(labels, vals, step) {
+  drawRSIPane(labels, vals, step);
+  drawMACDPane(labels, vals, step);
+}
+
+function drawRSIPane(labels, vals, step) {
+  const pane = document.getElementById('rsi-chart-pane');
+  const enabled = S.chartIndicators?.has('rsi');
+  pane.classList.toggle('hidden', !enabled);
+  if (rsiChart) { rsiChart.destroy(); rsiChart = null; }
+  if (!enabled) { window.rsiChart = null; return; }
+  const takeStep = arr => arr.filter((_,i) => i % step === 0);
+  const rsi = takeStep(calcRSI(vals, 14));
+  const ctx = document.getElementById('rsi-canvas').getContext('2d');
+  rsiChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'RSI 14', data:rsi, borderColor:'#fbbf24', backgroundColor:'#fbbf24', borderWidth:1.8, pointRadius:0, pointHoverRadius:4, tension:.08 },
+        { label:'Aşırı Alım 70', data:labels.map(()=>70), borderColor:'#f87171', borderDash:[5,4], borderWidth:1, pointRadius:0 },
+        { label:'Aşırı Satım 30', data:labels.map(()=>30), borderColor:'#4ade80', borderDash:[5,4], borderWidth:1, pointRadius:0 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:true, position:'top', labels:{ color:'#94a3b8', boxWidth:12, usePointStyle:true } } },
+      scales:{
+        x:{ ticks:{ color:'#475569', maxTicksLimit:7 }, grid:{ color:'#111e32' } },
+        y:{ min:0, max:100, ticks:{ color:'#64748b' }, grid:{ color:'#111e32' } }
       }
     }
   });
+  window.rsiChart = rsiChart;
+}
+
+function drawMACDPane(labels, vals, step) {
+  const pane = document.getElementById('macd-chart-pane');
+  const enabled = S.chartIndicators?.has('macd');
+  pane.classList.toggle('hidden', !enabled);
+  if (macdChart) { macdChart.destroy(); macdChart = null; }
+  if (!enabled) { window.macdChart = null; return; }
+  const takeStep = arr => arr.filter((_,i) => i % step === 0);
+  const macd = calcMACD(vals);
+  const hist = takeStep(macd.hist);
+  const ctx = document.getElementById('macd-canvas').getContext('2d');
+  macdChart = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        { type:'bar', label:'MACD Histogram', data:hist, backgroundColor:hist.map(v => v == null ? '#64748b' : v >= 0 ? '#22c55e99' : '#ef444499'), yAxisID:'macd' },
+        { type:'line', label:'MACD', data:takeStep(macd.macd), borderColor:'#c084fc', backgroundColor:'#c084fc', borderWidth:1.8, pointRadius:0, pointHoverRadius:4, tension:.08, yAxisID:'macd' },
+        { type:'line', label:'Sinyal 9', data:takeStep(macd.signal), borderColor:'#fbbf24', backgroundColor:'#fbbf24', borderWidth:1.4, pointRadius:0, pointHoverRadius:4, tension:.08, yAxisID:'macd' },
+        { type:'line', label:'Sıfır', data:labels.map(()=>0), borderColor:'#64748b', borderDash:[4,4], borderWidth:1, pointRadius:0, yAxisID:'macd' },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:true, position:'top', labels:{ color:'#94a3b8', boxWidth:12, usePointStyle:true } } },
+      scales:{
+        x:{ ticks:{ color:'#475569', maxTicksLimit:7 }, grid:{ color:'#111e32' } },
+        macd:{ position:'left', ticks:{ color:'#64748b' }, grid:{ color:'#111e32' } }
+      }
+    }
+  });
+  window.macdChart = macdChart;
+}
+
+function calcSMA(vals, period) {
+  return vals.map((_, i) => {
+    if (i < period - 1) return null;
+    const slice = vals.slice(i - period + 1, i + 1);
+    return slice.reduce((sum, v) => sum + v, 0) / period;
+  });
+}
+
+function calcEMA(vals, period) {
+  const k = 2 / (period + 1);
+  let ema = null;
+  return vals.map((v, i) => {
+    if (i < period - 1) return null;
+    if (ema == null) {
+      const seed = vals.slice(i - period + 1, i + 1);
+      ema = seed.reduce((sum, x) => sum + x, 0) / period;
+    } else {
+      ema = v * k + ema * (1 - k);
+    }
+    return ema;
+  });
+}
+
+function calcRSI(vals, period=14) {
+  const out = Array(vals.length).fill(null);
+  if (vals.length <= period) return out;
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = vals[i] - vals[i - 1];
+    if (diff >= 0) gains += diff;
+    else losses -= diff;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  out[period] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+  for (let i = period + 1; i < vals.length; i++) {
+    const diff = vals[i] - vals[i - 1];
+    avgGain = (avgGain * (period - 1) + Math.max(diff, 0)) / period;
+    avgLoss = (avgLoss * (period - 1) + Math.max(-diff, 0)) / period;
+    out[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
+  }
+  return out;
+}
+
+function calcMACD(vals) {
+  const ema12 = calcEMA(vals, 12);
+  const ema26 = calcEMA(vals, 26);
+  const macd = vals.map((_, i) => ema12[i] != null && ema26[i] != null ? ema12[i] - ema26[i] : null);
+  const signal = calcEMAWithNulls(macd, 9);
+  const hist = macd.map((v, i) => v != null && signal[i] != null ? v - signal[i] : null);
+  return { macd, signal, hist };
+}
+
+function calcEMAWithNulls(vals, period) {
+  const out = Array(vals.length).fill(null);
+  const k = 2 / (period + 1);
+  let ema = null;
+  let seed = [];
+  vals.forEach((v, i) => {
+    if (v == null || !Number.isFinite(v)) return;
+    if (ema == null) {
+      seed.push(v);
+      if (seed.length < period) return;
+      ema = seed.slice(-period).reduce((sum, x) => sum + x, 0) / period;
+    } else {
+      ema = v * k + ema * (1 - k);
+    }
+    out[i] = ema;
+  });
+  return out;
 }
 
 async function loadTechnical() {
@@ -1048,12 +1671,14 @@ function renderFundTechnical(f) {
   </div>
   <div class="indicator-card">
     <div class="text-xs text-slate-500 mb-2">KAP Bağlantısı</div>
-    ${f.kap_link ? `<a href="${f.kap_link}" target="_blank" class="text-blue-400 text-xs underline break-all">${f.kap_link}</a>` : '<span class="text-slate-500 text-xs">Mevcut değil</span>'}
+    ${f.kap_link ? `<a href="${safeUrl(f.kap_link)}" target="_blank" class="text-blue-400 text-xs underline break-all">${esc(f.kap_link)}</a>` : '<span class="text-slate-500 text-xs">Mevcut değil</span>'}
   </div>`;
 }
 
 function renderSRBlock(cp, ma, ind, hist) {
   if (!cp) return '';
+  cp = parseFloat(cp);
+  if (!Number.isFinite(cp) || cp <= 0) return '';
   const rsi       = ind?.rsi_14;
   const macdHist  = ind?.macd_histogram;
   const macdVal   = ind?.macd;
@@ -1061,8 +1686,38 @@ function renderSRBlock(cp, ma, ind, hist) {
   const ema20     = ma?.ema_20;
   const ema50     = ma?.ema_50 ?? ma?.sma_50;
 
+  const num = v => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const addLevel = (arr, label, val, opts = {}) => {
+    const n = num(val);
+    if (n == null || n <= 0) return;
+    arr.push({ label, val: n, ...opts });
+  };
+  const dedupeLevels = (arr) => {
+    const sorted = arr
+      .filter(l => Number.isFinite(l.val) && l.val > 0)
+      .sort((a, b) => Math.abs(a.val - cp) - Math.abs(b.val - cp));
+    const out = [];
+    for (const level of sorted) {
+      const dupe = out.find(x => Math.abs((x.val - level.val) / cp) < 0.0025);
+      if (!dupe) out.push(level);
+      else if ((level.priority || 0) > (dupe.priority || 0)) {
+        dupe.label = level.label;
+        dupe.val = level.val;
+        dupe.priority = level.priority;
+      }
+    }
+    return out;
+  };
+
   // Pivot from previous period
-  const bars = (hist?.data || []).filter(b => b?.close != null);
+  const bars = (hist?.data || []).map(b => ({
+    high: num(b?.high),
+    low: num(b?.low),
+    close: num(b?.close),
+  })).filter(b => b.close != null && b.high != null && b.low != null);
   let pivotSR = null;
   if (bars.length >= 2) {
     const prev = bars[bars.length - 2];
@@ -1073,23 +1728,44 @@ function renderSRBlock(cp, ma, ind, hist) {
     };
   }
 
-  const levels = [
-    { label:'SMA 20',     val:sma20 },
-    { label:'EMA 20',     val:ema20 },
-    { label:'EMA 50',     val:ema50 },
-    { label:'52H Yüksek', val:ma?.week_52_high },
-    { label:'52H Düşük',  val:ma?.week_52_low  },
-  ].filter(l => l.val != null && l.val > 0);
+  const levels = [];
+  addLevel(levels, 'SMA 20', sma20, { priority: 1 });
+  addLevel(levels, 'EMA 20', ema20, { priority: 1 });
+  addLevel(levels, 'EMA 50', ema50, { priority: 1 });
+  addLevel(levels, '52H Yüksek', ma?.week_52_high, { priority: 3 });
+  addLevel(levels, '52H Düşük', ma?.week_52_low, { priority: 3 });
 
   if (pivotSR) {
-    levels.push({label:'Pivot R1', val:pivotSR.r1, pivot:true});
-    levels.push({label:'Pivot R2', val:pivotSR.r2, pivot:true});
-    levels.push({label:'Pivot S1', val:pivotSR.s1, pivot:true});
-    levels.push({label:'Pivot S2', val:pivotSR.s2, pivot:true});
+    addLevel(levels, 'Pivot R1', pivotSR.r1, { pivot:true, priority: 4 });
+    addLevel(levels, 'Pivot R2', pivotSR.r2, { pivot:true, priority: 4 });
+    addLevel(levels, 'Pivot S1', pivotSR.s1, { pivot:true, priority: 4 });
+    addLevel(levels, 'Pivot S2', pivotSR.s2, { pivot:true, priority: 4 });
   }
 
-  const supports    = levels.filter(l=>l.val<cp).sort((a,b)=>b.val-a.val);
-  const resistances = levels.filter(l=>l.val>cp).sort((a,b)=>a.val-b.val);
+  if (bars.length >= 5) {
+    const recent = bars.slice(-90);
+    const highs = recent.map(b => b.high).filter(v => v != null && v > cp * 1.0025);
+    const lows = recent.map(b => b.low).filter(v => v != null && v < cp * 0.9975);
+    const highLabel = recent.length >= 60 ? '90G Tepe' : 'Dönem Tepe';
+    const lowLabel = recent.length >= 60 ? '90G Dip' : 'Dönem Dip';
+    if (highs.length) addLevel(levels, highLabel, Math.max(...highs), { priority: 3 });
+    if (lows.length) addLevel(levels, lowLabel, Math.min(...lows), { priority: 3 });
+
+    for (let i = 2; i < recent.length - 2; i++) {
+      const cur = recent[i];
+      if (cur.high > recent[i-1].high && cur.high > recent[i-2].high && cur.high >= recent[i+1].high && cur.high >= recent[i+2].high) {
+        addLevel(levels, 'Yerel Tepe', cur.high, { priority: 2 });
+      }
+      if (cur.low < recent[i-1].low && cur.low < recent[i-2].low && cur.low <= recent[i+1].low && cur.low <= recent[i+2].low) {
+        addLevel(levels, 'Yerel Dip', cur.low, { priority: 2 });
+      }
+    }
+  }
+
+  const cleanLevels = dedupeLevels(levels);
+  const band = cp * 0.0025;
+  const supports    = cleanLevels.filter(l=>l.val < cp - band).sort((a,b)=>b.val-a.val);
+  const resistances = cleanLevels.filter(l=>l.val > cp + band).sort((a,b)=>a.val-b.val);
 
   if (!supports.length && !resistances.length) return '';
 
@@ -1161,7 +1837,9 @@ function renderSRBlock(cp, ma, ind, hist) {
     </div>
 
     <div class="text-xs text-slate-600 mb-1.5">Direnç Seviyeleri</div>
-    ${resistances.slice(0,3).reverse().map(l=>srRow(l.label,l.val,'R')).join('')}
+    ${resistances.length
+      ? resistances.slice(0,3).reverse().map(l=>srRow(l.label,l.val,'R')).join('')
+      : '<div class="text-xs text-slate-500 py-2 px-3 rounded mb-1" style="background:#111827">Güncel fiyatın üzerinde belirgin direnç seviyesi bulunamadı.</div>'}
 
     <div class="flex items-center justify-center py-2 px-3 rounded my-2" style="background:#1e293b;border:1px solid #475569">
       <span class="text-xs text-slate-400 mr-2">▶ Güncel Fiyat</span>
@@ -1169,7 +1847,9 @@ function renderSRBlock(cp, ma, ind, hist) {
     </div>
 
     <div class="text-xs text-slate-600 mb-1.5">Destek Seviyeleri</div>
-    ${supports.slice(0,3).map(l=>srRow(l.label,l.val,'S')).join('')}
+    ${supports.length
+      ? supports.slice(0,3).map(l=>srRow(l.label,l.val,'S')).join('')
+      : '<div class="text-xs text-slate-500 py-2 px-3 rounded mb-1" style="background:#111827">Güncel fiyatın altında belirgin destek seviyesi bulunamadı.</div>'}
 
     ${pivotSR ? `<div class="mt-2 pt-2 text-xs text-slate-600" style="border-top:1px solid #1e2d45">
       Pivot Noktası: <span class="text-slate-400 font-medium">${fmt(pivotSR.pp,2)}</span>
@@ -1295,6 +1975,10 @@ function renderTech(d, hist) {
 async function loadAnalyst() {
   const out = document.getElementById('analyst-out');
   out.innerHTML = '<div class="text-center py-10 text-slate-500">Yükleniyor…</div>';
+  if (S.curMkt === 'fund') {
+    await loadFundPerformance(out);
+    return;
+  }
   if (!S.curMkt || S.curMkt.startsWith('crypto') || S.curMkt === 'fund') {
     out.innerHTML = '<div class="text-center py-10 text-slate-400">Bu varlık türü için analist verisi mevcut değil</div>';
     return;
@@ -1309,6 +1993,257 @@ async function loadAnalyst() {
     const hist = await rh.json();
     out.innerHTML = renderMultiAnalyst(d, hist);
   } catch (e) { out.innerHTML = `<div class="text-red-400 text-center py-8">Hata: ${e.message}</div>`; }
+}
+
+async function loadKapNews() {
+  const out = document.getElementById('news-out');
+  if (S.curMkt === 'fund') {
+    await loadFundCompare(out);
+    return;
+  }
+  out.innerHTML = '<div class="text-center py-10 text-slate-500">KAP haberleri yükleniyor…</div>';
+  if (S.curMkt !== 'bist') {
+    out.innerHTML = '<div class="text-center py-10 text-slate-400">KAP haberleri yalnızca BIST hisseleri için gösterilir.</div>';
+    return;
+  }
+  try {
+    const r = await fetch(`/api/asset/news?symbol=${S.curSym}&market=bist&limit=20`);
+    if (!r.ok) throw new Error('KAP haberleri alınamadı');
+    const d = await r.json();
+    out.innerHTML = renderKapNews(d);
+  } catch (e) {
+    out.innerHTML = `<div class="text-red-400 text-center py-8">Hata: ${e.message}</div>`;
+  }
+}
+
+async function loadFundPerformance(out) {
+  out.innerHTML = '<div class="text-center py-10 text-slate-500">Fon performansı yükleniyor…</div>';
+  try {
+    const r = await fetch(`/api/fund/performance?symbol=${S.curSym}&days=60`);
+    if (!r.ok) throw new Error('Fon performansı alınamadı');
+    const d = await r.json();
+    out.innerHTML = renderFundPerformance(d);
+  } catch (e) {
+    out.innerHTML = `<div class="text-red-400 text-center py-8">Hata: ${e.message}</div>`;
+  }
+}
+
+async function loadFundCompare(out) {
+  out.innerHTML = '<div class="text-center py-10 text-slate-500">Karşılaştırma yükleniyor…</div>';
+  try {
+    const r = await fetch(`/api/fund/compare?symbol=${S.curSym}`);
+    if (!r.ok) throw new Error('Karşılaştırma alınamadı');
+    const d = await r.json();
+    out.innerHTML = renderFundCompare(d);
+  } catch (e) {
+    out.innerHTML = `<div class="text-red-400 text-center py-8">Hata: ${e.message}</div>`;
+  }
+}
+
+function renderFundPerformance(d) {
+  const fund = d.fund || {};
+  const ret = d.return_percent;
+  const best = d.best_month;
+  const worst = d.worst_month;
+  const sampleNote = d.daily_sample_size < 20
+    ? `<div class="text-xs text-amber-300 mt-3 p-2 rounded" style="background:#d9770615">60 günlük aralıkta kaynak ${d.daily_sample_size} işlem günü değişimi döndürdü; pozitif/negatif gün sayımı bu işlem günleri üzerinden hesaplandı.</div>`
+    : '';
+  const metric = (label, value, color = '#e2e8f0') => `<div class="p-3 rounded" style="background:#060c16">
+    <div class="text-xs text-slate-500 mb-1">${label}</div>
+    <div class="text-xl font-black" style="color:${color}">${value}</div>
+  </div>`;
+  return `<div class="space-y-3">
+    <div class="indicator-card">
+      <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">📈 Fon Performansı</div>
+      <div class="text-sm text-slate-300">${esc(fund.name || d.symbol)}</div>
+      <div class="text-xs text-slate-600 mt-1">${d.start_date || '--'} - ${d.end_date || '--'} · ${d.period_days || d.requested_days} gün</div>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      ${metric('60 Günlük Getiri', ret != null ? pct(ret) : '--', ret >= 0 ? '#22c55e' : '#ef4444')}
+      ${metric('Pozitif Gün', d.positive_days ?? '--', '#22c55e')}
+      ${metric('Negatif Gün', d.negative_days ?? '--', '#ef4444')}
+      ${metric('Nötr Gün', d.flat_days ?? 0, '#94a3b8')}
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="indicator-card">
+        <div class="text-xs text-slate-500 mb-1">En İyi Ay</div>
+        <div class="text-lg font-black text-green-400">${best ? pct(best.return_percent) : '--'}</div>
+        <div class="text-xs text-slate-600">${best?.month || ''}</div>
+      </div>
+      <div class="indicator-card">
+        <div class="text-xs text-slate-500 mb-1">En Kötü Ay</div>
+        <div class="text-lg font-black text-red-400">${worst ? pct(worst.return_percent) : '--'}</div>
+        <div class="text-xs text-slate-600">${worst?.month || ''}</div>
+      </div>
+    </div>
+    <div class="indicator-card">
+      ${infoTable([
+        ['Başlangıç Fiyatı', d.start_price != null ? fmt(d.start_price, 4) : null],
+        ['Bitiş Fiyatı', d.end_price != null ? fmt(d.end_price, 4) : null],
+        ['Fon Kategorisi', fund.category || null],
+        ['Kategori Sırası', fund.category_rank != null ? `${fund.category_rank} / ${fund.category_fund_count || '?'}` : null],
+      ])}
+      ${sampleNote}
+    </div>
+  </div>`;
+}
+
+function renderFundCompare(d) {
+  const card = (title, value, sub, tone='slate') => {
+    const color = tone === 'green' ? '#22c55e' : tone === 'red' ? '#ef4444' : tone === 'blue' ? '#60a5fa' : '#e2e8f0';
+    return `<div class="indicator-card">
+      <div class="text-xs text-slate-500 mb-1">${title}</div>
+      <div class="text-2xl font-black" style="color:${color}">${value}</div>
+      ${sub ? `<div class="text-xs text-slate-600 mt-1">${sub}</div>` : ''}
+    </div>`;
+  };
+  const ret60 = d.return_60d || {};
+  const ret90 = d.return_90d || {};
+  const best = d.best_month;
+  const worst = d.worst_month;
+  return `<div class="space-y-3">
+    <div class="indicator-card">
+      <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">📊 Fon Karşılaştırma Özeti</div>
+      <div class="text-xs text-slate-600">Sadece fonun kendi performans metrikleri gösteriliyor</div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      ${card('En İyi Ay', best ? pct(best.return_percent) : '--', best ? `${best.month} · ${best.start_date || ''} / ${best.end_date || ''}` : '', 'green')}
+      ${card('En Kötü Ay', worst ? pct(worst.return_percent) : '--', worst ? `${worst.month} · ${worst.start_date || ''} / ${worst.end_date || ''}` : '', 'red')}
+      ${card('60 Günlük Getiri', ret60.return_percent != null ? pct(ret60.return_percent) : '--', ret60.start_date && ret60.end_date ? `${ret60.start_date} - ${ret60.end_date}` : '', ret60.return_percent >= 0 ? 'green' : 'red')}
+      ${card('90 Günlük Getiri', ret90.return_percent != null ? pct(ret90.return_percent) : '--', ret90.start_date && ret90.end_date ? `${ret90.start_date} - ${ret90.end_date}` : '', ret90.return_percent >= 0 ? 'green' : 'red')}
+    </div>
+  </div>`;
+}
+
+async function loadFundPortfolio(out) {
+  out.innerHTML = '<div class="text-center py-10 text-slate-500">Fon portföyü yükleniyor…</div>';
+  try {
+    const r = await fetch(`/api/fund?symbol=${S.curSym}`);
+    if (!r.ok) throw new Error('Fon portföyü alınamadı');
+    const d = await r.json();
+    out.innerHTML = renderFundPortfolio(d);
+  } catch (e) {
+    out.innerHTML = `<div class="text-red-400 text-center py-8">Hata: ${e.message}</div>`;
+  }
+}
+
+function extractFundPortfolioItems(data) {
+  const f = data?.fund || data || {};
+  const candidates = [
+    data?.portfolio,
+    data?.holdings,
+    data?.fund_portfolio,
+    data?.portfolio_allocation,
+    data?.allocations,
+    f?.portfolio,
+    f?.holdings,
+    f?.portfolio_allocation,
+    f?.allocations,
+    f?.asset_allocation,
+  ];
+  for (const c of candidates) {
+    if (Array.isArray(c)) return c;
+    if (c && typeof c === 'object') {
+      for (const k of ['items','data','holdings','assets','portfolio','allocations','stocks']) {
+        if (Array.isArray(c[k])) return c[k];
+      }
+      return Object.entries(c).map(([name, value]) => ({name, value}));
+    }
+  }
+  return [];
+}
+
+function renderFundPortfolio(data) {
+  const f = data?.fund || {};
+  const items = extractFundPortfolioItems(data);
+  const kap = f.kap_link || data?.kap_link;
+  const title = f.name || f.code || S.curSym;
+  if (!items.length) {
+    return `<div class="indicator-card">
+      <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">📂 Fon Portföyü</div>
+      <div class="text-sm text-slate-400 mb-3">${esc(title)}</div>
+      <div class="text-xs text-slate-500 leading-relaxed">
+        Bu fon için kaynak veride güncel yatırım yapılan hisse/varlık listesi gelmedi.
+        ${kap ? `KAP fon sayfasından portföy ve bildirimleri kontrol edebilirsiniz.` : ''}
+      </div>
+      ${kap ? `<a href="${safeUrl(kap)}" target="_blank" class="btn-ghost inline-block text-xs px-3 py-2 mt-3">KAP Fon Sayfasını Aç</a>` : ''}
+    </div>`;
+  }
+  const rows = items.map(item => {
+    const symbol = item.symbol || item.code || item.ticker || item.stock_code || item.name || item.asset || item.security || '--';
+    const name = item.name || item.title || item.asset_name || item.security_name || item.description || '';
+    const weight = numFirst(item.weight, item.ratio, item.percentage, item.percent, item.value, item.portfolio_weight);
+    const amount = numFirst(item.amount, item.nominal, item.quantity, item.lot);
+    const marketValue = numFirst(item.market_value, item.marketValue, item.value_tl, item.total_value);
+    return {symbol, name, weight, amount, marketValue};
+  });
+  rows.sort((a,b) => (b.weight || 0) - (a.weight || 0));
+  const totalWeight = rows.reduce((sum, r) => sum + (r.weight || 0), 0);
+  return `<div class="space-y-3">
+    <div class="indicator-card">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide">📂 Fon Portföyü</div>
+          <div class="text-sm text-slate-300 mt-1">${esc(title)}</div>
+          <div class="text-xs text-slate-600 mt-1">${rows.length} kalem${totalWeight ? ` · Toplam oran: %${fmt(totalWeight,2)}` : ''}</div>
+        </div>
+        ${kap ? `<a href="${safeUrl(kap)}" target="_blank" class="btn-ghost text-xs px-3 py-2">KAP'ta Aç</a>` : ''}
+      </div>
+    </div>
+    <div class="indicator-card overflow-hidden">
+      <div class="grid grid-cols-[1fr_80px_90px] gap-3 px-3 py-2 text-xs text-slate-600" style="border-bottom:1px solid #1e2d45">
+        <span>Varlık / Hisse</span><span class="text-right">Oran</span><span class="text-right">Değer</span>
+      </div>
+      ${rows.map(r => `<div class="grid grid-cols-[1fr_80px_90px] gap-3 px-3 py-2 items-center" style="border-bottom:1px solid #111e32">
+        <div class="min-w-0">
+          <div class="text-sm font-semibold text-slate-200 truncate">${esc(r.symbol)}</div>
+          ${r.name && r.name !== r.symbol ? `<div class="text-xs text-slate-600 truncate">${esc(r.name)}</div>` : ''}
+          ${r.amount ? `<div class="text-xs text-slate-700">${r.amount.toLocaleString('tr-TR')} adet/nominal</div>` : ''}
+        </div>
+        <div class="text-right text-sm font-bold text-slate-300">${r.weight != null ? `%${fmt(r.weight,2)}` : '--'}</div>
+        <div class="text-right text-xs text-slate-500">${r.marketValue != null ? fmtBig(r.marketValue) : '--'}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderKapNews(data) {
+  const items = data.news || data.items || data.data || [];
+  if (!items.length) {
+    return `<div class="indicator-card text-center">
+      <div class="text-slate-400 text-sm mb-2">Bu hisse için KAP haberi bulunamadı.</div>
+      <a href="https://www.kap.org.tr/tr/ara/${encodeURIComponent(S.curSym)}" target="_blank" class="text-blue-400 text-xs underline">KAP üzerinde ara</a>
+    </div>`;
+  }
+  const source = data.metadata?.source ? `Kaynak: ${esc(data.metadata.source)}` : 'Kaynak: KAP';
+  return `<div class="space-y-3">
+    <div class="indicator-card">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide">📰 KAP Haberleri</div>
+          <div class="text-xs text-slate-600 mt-1">${source} · ${items.length} bildirim</div>
+        </div>
+        <a href="https://www.kap.org.tr/tr/ara/${encodeURIComponent(S.curSym)}" target="_blank" class="btn-ghost text-xs px-3 py-2">KAP'ta Aç</a>
+      </div>
+    </div>
+    ${items.map(item => {
+      const title = item.title || item.headline || item.subject || 'KAP Bildirimi';
+      const summary = item.summary || item.description || item.content || '';
+      const date = item.published_date || item.date || item.created_at || item.timestamp || '';
+      const url = item.url || item.link || item.news_url || '';
+      const src = item.source || 'KAP';
+      return `<div class="indicator-card">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <div class="min-w-0">
+            <div class="text-sm font-bold text-slate-200 leading-snug">${esc(title)}</div>
+            <div class="text-xs text-slate-600 mt-1">${esc(src)}${date ? ' · ' + esc(date) : ''}</div>
+          </div>
+          ${url ? `<a href="${esc(url)}" target="_blank" class="text-blue-400 text-xs whitespace-nowrap underline">Aç</a>` : ''}
+        </div>
+        ${summary && summary !== title ? `<div class="text-xs text-slate-500 leading-relaxed">${esc(summary)}</div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 function renderMultiAnalyst(d, hist) {
@@ -1327,6 +2262,52 @@ function renderMultiAnalyst(d, hist) {
   const rec  = s.consensus || '--';
   const recC = recColor[rec] || '#94a3b8';
   const recTR = {'Buy':'AL','Strong Buy':'GÜÇLÜ AL','Hold':'TUT','Sell':'SAT','Strong Sell':'GÜÇLÜ SAT'};
+  const ratingFields = ['recommendation','rating','to_grade','toGrade','grade','action','opinion','consensus'];
+  const targetFields = ['target_price','targetPrice','target','price_target','priceTarget','hedef_fiyat','mean_target'];
+  const brokerFields = ['firm','broker','institution','araci_kurum','aracı_kurum','source','name'];
+
+  const normalizeRating = (value) => {
+    if (value == null) return null;
+    const raw = value.toString().trim();
+    const t = raw.toUpperCase()
+      .replace(/İ/g, 'I')
+      .replace(/Ş/g, 'S')
+      .replace(/Ğ/g, 'G')
+      .replace(/Ü/g, 'U')
+      .replace(/Ö/g, 'O')
+      .replace(/Ç/g, 'C');
+    if (t.includes('STRONG BUY') || t.includes('GÜCLU AL') || t.includes('GUCLU AL')) return 'GÜÇLÜ AL';
+    if (t === 'BUY' || t.includes(' OUTPERFORM') || t.includes('AL')) return 'AL';
+    if (t === 'HOLD' || t.includes('TUT') || t.includes('NEUTRAL') || t.includes('NÖTR') || t.includes('NOTR') || t.includes('EQUAL')) return 'TUT';
+    if (t.includes('STRONG SELL') || t.includes('GÜCLU SAT') || t.includes('GUCLU SAT')) return 'GÜÇLÜ SAT';
+    if (t === 'SELL' || t.includes('UNDERPERFORM') || t.includes('SAT')) return 'SAT';
+    return raw;
+  };
+  const ratingMeta = (label) => {
+    const t = normalizeRating(label);
+    if (t === 'GÜÇLÜ AL') return {label:t, color:'#22c55e', bg:'#16a34a20'};
+    if (t === 'AL') return {label:t, color:'#86efac', bg:'#15803d20'};
+    if (t === 'TUT') return {label:t, color:'#fbbf24', bg:'#d9770618'};
+    if (t === 'SAT') return {label:t, color:'#fca5a5', bg:'#dc262618'};
+    if (t === 'GÜÇLÜ SAT') return {label:t, color:'#ef4444', bg:'#dc262620'};
+    return {label:t || 'Veri yok', color:'#94a3b8', bg:'#1e2d45'};
+  };
+  const ratingBadge = (label) => {
+    const m = ratingMeta(label);
+    return `<span class="text-xs font-bold px-2 py-1 rounded" style="color:${m.color};background:${m.bg};white-space:nowrap">${m.label}</span>`;
+  };
+  const firstField = (obj, fields) => {
+    for (const key of fields) {
+      if (obj && obj[key] != null && obj[key] !== '') return obj[key];
+    }
+    return null;
+  };
+  const brokerRows = ratings.map(r => ({
+    firm: firstField(r, brokerFields) || 'Aracı Kurum',
+    rating: normalizeRating(firstField(r, ratingFields)),
+    target: firstField(r, targetFields),
+    date: r.date || r.report_date || r.updated_at || r.last_update || null,
+  })).filter(r => r.firm || r.rating || r.target);
 
   // Section 1: Consensus
   const bPct = nTotal ? (nBuy/nTotal*100)  : 0;
@@ -1407,33 +2388,51 @@ function renderMultiAnalyst(d, hist) {
 
   // Section 2: Firm list
   let section2 = '';
-  if (!isBist && ratings.length > 0) {
+  if (!isBist && brokerRows.length > 0) {
     section2 = `<div class="indicator-card mb-3">
       <div class="flex items-center gap-2 mb-3">
         <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">🏦 Kaynak 2: Analist Firmaları</span>
         <span class="text-xs text-slate-600">(Yahoo Finance / yfinance)</span>
       </div>
-      ${ratings.slice(0,15).map(r => `<div class="flex justify-between items-center py-1.5" style="border-bottom:1px solid #111e32">
-        <span class="text-sm font-medium">${r.firm}</span>
-        <span class="text-xs text-slate-500">${r.date ? new Date(r.date).toLocaleDateString('tr-TR') : ''}</span>
+      ${brokerRows.slice(0,15).map(r => `<div class="flex justify-between items-center gap-3 py-1.5" style="border-bottom:1px solid #111e32">
+        <div>
+          <div class="text-sm font-medium">${esc(r.firm)}</div>
+          <div class="text-xs text-slate-600">${r.date ? new Date(r.date).toLocaleDateString('tr-TR') : ''}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          ${r.target ? `<span class="text-xs text-slate-500">Hedef: ${fmt(r.target,2)}</span>` : ''}
+          ${ratingBadge(r.rating)}
+        </div>
       </div>`).join('')}
       <div class="text-xs text-slate-600 mt-2">Toplam konsensüs: ${nBuy} AL, ${nHold} TUT, ${nSell} SAT</div>
     </div>`;
-  } else if (isBist && nTotal > 0) {
-    const bistFirms = ['İş Yatırım','Ak Yatırım','Garanti Yatırım','Yapı Kredi Yatırım','Halk Yatırım','Vakıf Yatırım','QNB Finans Yatırım','Ata Yatırım','Deniz Yatırım','TEB Yatırım','Alb Yatırım','Gedik Yatırım'];
+  } else if (isBist) {
+    const hasBrokerRows = brokerRows.some(r => r.rating);
     section2 = `<div class="indicator-card mb-3">
       <div class="flex items-center gap-2 mb-3">
         <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">🏦 Kaynak 2: Türk Aracı Kurumlar</span>
-        <span class="text-xs text-slate-600">(Bloomberg Konsensüs)</span>
+        <span class="text-xs text-slate-600">(Kurum Bazlı Öneri)</span>
       </div>
-      <div class="text-xs text-slate-500 mb-3">Ortalama konsensüs: <strong style="color:${recC}">${recTR[rec] || rec}</strong></div>
-      <div class="grid grid-cols-2 gap-1">
-        ${bistFirms.map(f => `<div class="flex items-center gap-2 py-1.5 px-2 rounded" style="background:#060c16">
-          <span class="text-xs" style="color:${recC}">●</span>
-          <span class="text-xs text-slate-300">${f}</span>
-        </div>`).join('')}
-      </div>
-      <div class="text-xs text-slate-600 mt-2">* Toplu konsensüs verisi. Bireysel öneriler için aracı kurum raporlarına başvurun.</div>
+      ${hasBrokerRows ? `
+        <div class="space-y-1">
+          ${brokerRows.slice(0,20).map(r => `<div class="flex justify-between items-center gap-3 py-2 px-2 rounded" style="background:#060c16;border-bottom:1px solid #111e32">
+            <div>
+              <div class="text-sm font-medium text-slate-300">${esc(r.firm)}</div>
+              <div class="text-xs text-slate-600">${r.date ? new Date(r.date).toLocaleDateString('tr-TR') : ''}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              ${r.target ? `<span class="text-xs text-slate-500">Hedef: ${fmt(r.target,2)}</span>` : ''}
+              ${ratingBadge(r.rating)}
+            </div>
+          </div>`).join('')}
+        </div>
+        <div class="text-xs text-slate-600 mt-2">AL / TUT / SAT önerileri kurum bazlı gelen veriden gösterilir.</div>
+      ` : `
+        <div class="text-xs text-slate-500 p-3 rounded" style="background:#060c16">
+          Bu hisse için Türk aracı kurum bazlı AL / TUT / SAT önerisi kaynak veride gelmedi.
+          ${nTotal > 0 ? `<br>Toplu konsensüs: <strong style="color:${recC}">${recTR[rec] || rec}</strong> · ${nBuy} AL, ${nHold} TUT, ${nSell} SAT` : ''}
+        </div>
+      `}
     </div>`;
   }
 
@@ -1552,7 +2551,116 @@ function renderMultiAnalyst(d, hist) {
     </div>
   </details>`;
 
-  return `<div class="space-y-0">${section1}${section2}${section6}${section3}${section4}${section5}${sourceList}${glossary}</div>`;
+  const marketInfo = renderMarketInfoCard(quick, techD, hist);
+
+  return `<div class="space-y-0">${section1}${marketInfo}${section2}${section6}${section3}${section4}${section5}${sourceList}${glossary}</div>`;
+}
+
+function renderMarketInfoCard(quick, techD, hist) {
+  const qd = (Array.isArray(quick?.data) ? quick.data[0] : quick?.data) || {};
+  const bars = (hist?.data || []).map(b => ({
+    date: b?.date,
+    open: parseFloat(b?.open),
+    high: parseFloat(b?.high),
+    low: parseFloat(b?.low),
+    close: parseFloat(b?.close),
+    volume: parseFloat(b?.volume),
+  })).filter(b => Number.isFinite(b.close));
+
+  const last = bars[bars.length - 1] || {};
+  const prev = bars[bars.length - 2] || {};
+  const price = numFirst(qd.current_price, techD?.current_price, last.close);
+  const prevClose = numFirst(qd.previous_close, qd.previousClose, prev.close);
+  const dailyChange = price != null && prevClose ? price - prevClose : numFirst(qd.change, qd.regularMarketChange);
+  const dailyChangePct = dailyChange != null && prevClose ? dailyChange / prevClose * 100 : numFirst(qd.change_pct, qd.regularMarketChangePercent);
+  const open = numFirst(qd.open, qd.open_price, qd.regularMarketOpen, last.open);
+  const dayLow = numFirst(qd.day_low, qd.low, qd.regularMarketDayLow, last.low);
+  const dayHigh = numFirst(qd.day_high, qd.high, qd.regularMarketDayHigh, last.high);
+  const volumeLot = numFirst(qd.volume, last.volume);
+  const turnover = price != null && volumeLot != null ? price * volumeLot : numFirst(qd.turnover, qd.volume_tl);
+  const avgDaily = [open, dayLow, dayHigh, price].filter(v => v != null).length
+    ? [open, dayLow, dayHigh, price].filter(v => v != null).reduce((a,b)=>a+b,0) / [open, dayLow, dayHigh, price].filter(v => v != null).length
+    : null;
+  const step = price != null ? (price < 20 ? 0.01 : price < 50 ? 0.02 : price < 100 ? 0.05 : 0.1) : null;
+  const lowerLimit = prevClose ? prevClose * 0.9 : null;
+  const upperLimit = prevClose ? prevClose * 1.1 : null;
+  const ma20 = numFirst(techD?.moving_averages?.sma_20);
+  const closes = bars.map(b => b.close).filter(Number.isFinite);
+  const ma52 = closes.length >= 52 ? closes.slice(-52).reduce((a,b)=>a+b,0) / 52 : null;
+  const weekBars = bars.slice(-5);
+  const monthBars = bars.slice(-22);
+  const yearBars = bars.slice(-252);
+  const rangeLow = arr => arr.length ? Math.min(...arr.map(b => b.low).filter(Number.isFinite)) : null;
+  const rangeHigh = arr => arr.length ? Math.max(...arr.map(b => b.high).filter(Number.isFinite)) : null;
+  const firstDate = qd.first_trade_date || qd.firstTradeDate || qd.ipo_date || qd.ipoDate || (bars[0]?.date || null);
+  const currency = qd.currency || 'TRY';
+  const cur = currency === 'TRY' ? '₺' : currency === 'USD' ? '$' : '';
+  const valueCell = (label, value, kind = 'price') => `
+    <div class="flex justify-between gap-3 py-1.5" style="border-bottom:1px solid #111e32">
+      <span class="text-xs text-slate-500">${label}</span>
+      <span class="text-xs font-semibold text-slate-300 text-right">${formatMarketValue(value, kind, cur)}</span>
+    </div>`;
+
+  return `<div class="indicator-card mb-3">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">📌 Hisse İşlem Bilgileri</span>
+      <span class="text-xs text-slate-600">(Hisseye Özel)</span>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-5">
+      <div>
+        ${valueCell('Hissenin İlk İşlem Tarihi', firstDate, 'date')}
+        ${valueCell('Son İşlem Fiyatı', price)}
+        ${valueCell('Alış', numFirst(qd.bid, qd.bid_price))}
+        ${valueCell('Satış', numFirst(qd.ask, qd.ask_price))}
+        ${valueCell('Günlük Değişim', dailyChange, 'signed')}
+        ${valueCell('Günlük Değişim (%)', dailyChangePct, 'pctSigned')}
+        ${valueCell('Günlük Hacim (Lot)', volumeLot, 'lot')}
+        ${valueCell('Günlük Hacim (TL)', turnover, 'money')}
+        ${valueCell('Günlük Ortalama', avgDaily)}
+        ${valueCell('Gün İçi En Düşük', dayLow)}
+        ${valueCell('Gün İçi En Yüksek', dayHigh)}
+        ${valueCell('Açılış Fiyatı', open)}
+      </div>
+      <div>
+        ${valueCell('Fiyat Adımı', step)}
+        ${valueCell('Önceki Kapanış Fiyatı', prevClose)}
+        ${valueCell('Alt Marj Fiyatı', lowerLimit)}
+        ${valueCell('Üst Marj Fiyatı', upperLimit)}
+        ${valueCell('20 Günlük Ortalama', ma20)}
+        ${valueCell('52 Günlük Ortalama', ma52)}
+        ${valueCell('Haftalık En Düşük', rangeLow(weekBars))}
+        ${valueCell('Haftalık En Yüksek', rangeHigh(weekBars))}
+        ${valueCell('Aylık En Düşük', rangeLow(monthBars))}
+        ${valueCell('Aylık En Yüksek', rangeHigh(monthBars))}
+        ${valueCell('Yıllık En Düşük', numFirst(qd.week_52_low, rangeLow(yearBars)))}
+        ${valueCell('Yıllık En Yüksek', numFirst(qd.week_52_high, rangeHigh(yearBars)))}
+        ${valueCell('Baz Fiyatı', price)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function numFirst(...values) {
+  for (const value of values) {
+    const n = parseFloat(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function formatMarketValue(value, kind = 'price', cur = '₺') {
+  if (value == null || value === '' || Number.isNaN(value)) return '--';
+  if (kind === 'date') {
+    const dt = new Date(value);
+    return Number.isNaN(dt.getTime()) ? esc(value) : dt.toLocaleDateString('tr-TR');
+  }
+  const n = parseFloat(value);
+  if (!Number.isFinite(n)) return esc(value);
+  if (kind === 'pctSigned') return `${n >= 0 ? '+' : ''}${fmt(n, 2)}%`;
+  if (kind === 'signed') return `${n >= 0 ? '+' : ''}${fmt(n, 2)}`;
+  if (kind === 'lot') return n.toLocaleString('tr-TR', {maximumFractionDigits: 0});
+  if (kind === 'money') return `${cur}${n.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  return fmt(n, Math.abs(n) < 1 ? 4 : 2);
 }
 
 function renderAnalyst(d) {
@@ -1627,28 +2735,6 @@ function renderAnalyst(d) {
       </details>
     </div>
   `;
-}
-
-async function loadInfo() {
-  const out = document.getElementById('info-out');
-  out.innerHTML = '<div class="text-center py-10 text-slate-500">Yükleniyor…</div>';
-  try {
-    let data;
-    if (S.curMkt === 'fund') {
-      const r = await fetch(`/api/fund?symbol=${S.curSym}`);
-      data = await r.json();
-      out.innerHTML = renderFundInfo(data);
-    } else if (S.curMkt?.startsWith('crypto')) {
-      const exc = S.curExc || (S.curMkt === 'crypto_tr' ? 'btcturk' : 'coinbase');
-      const r = await fetch(`/api/crypto?symbol=${S.curSym}&exchange=${exc}`);
-      data = await r.json();
-      out.innerHTML = renderCryptoInfo(data);
-    } else {
-      const r = await fetch(`/api/asset/quick?symbol=${S.curSym}&market=${S.curMkt}`);
-      data = await r.json();
-      out.innerHTML = renderQuickInfo(data);
-    }
-  } catch (e) { out.innerHTML = `<div class="text-red-400 text-center py-8">Hata: ${e.message}</div>`; }
 }
 
 function infoTable(rows) {
@@ -1760,16 +2846,29 @@ const BIST_PRESETS = [
   { v:'low_pe',              l:'Düşük F/K' },
   { v:'high_dividend_yield', l:'Yüksek Temettü' },
 ];
+const CRYPTO_PRESETS = [
+  { v:'top_gainers', l:'En Çok Yükselenler' },
+  { v:'top_losers',  l:'En Çok Düşenler' },
+  { v:'high_volume', l:'En Yüksek Hacim' },
+  { v:'most_active', l:'En Hareketli' },
+  { v:'all',         l:'Tüm Coinler' },
+];
 
 function initScreener() {
   updateScreenerPresets();
 }
 function updateScreenerPresets() {
   const mkt = document.getElementById('sc-market').value;
-  const presets = mkt === 'us' ? US_PRESETS : BIST_PRESETS;
+  const isCrypto = mkt.startsWith('crypto');
+  document.getElementById('sc-preset-wrap').classList.remove('hidden');
+  const presets = isCrypto ? CRYPTO_PRESETS : (mkt === 'us' ? US_PRESETS : BIST_PRESETS);
   const sel = document.getElementById('sc-preset');
-  sel.innerHTML = '<option value="">-- Şablon seçin --</option>' +
+  sel.innerHTML = (isCrypto ? '' : '<option value="">-- Şablon seçin --</option>') +
     presets.map(p => `<option value="${p.v}">${p.l}</option>`).join('');
+  if (isCrypto) {
+    document.getElementById('screener-out').innerHTML =
+      '<div class="text-center py-16 text-slate-500">Kripto filtresi seçin, ardından <strong>Tara</strong>ya tıklayın</div>';
+  }
 }
 
 async function runScreener() {
@@ -1778,6 +2877,13 @@ async function runScreener() {
   const out    = document.getElementById('screener-out');
   out.innerHTML = '<div class="text-center py-12 text-slate-500">Taranıyor… <span class="inline-block spin">⟳</span></div>';
   try {
+    if (mkt.startsWith('crypto')) {
+      const r = await fetch(`/api/crypto/list?market=${mkt}&limit=30`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.detail || r.statusText);
+      out.innerHTML = renderCryptoScreenerTable(d.items || [], mkt, preset || 'top_gainers');
+      return;
+    }
     const qs = preset ? `market=${mkt}&preset=${preset}` : `market=${mkt}`;
     const r  = await fetch(`/api/screener?${qs}`);
     const d  = await r.json();
@@ -1851,16 +2957,16 @@ function renderScanTable(data, preset, label) {
       ? `<span style="font-size:.65rem;color:${macd>0?'#4ade80':'#f87171'}">MACD ${macd>0?'+':''}${fmt(macd,2)}</span>`
       : '';
 
-    return `<tr class="sr-row" onclick="quickAddFromTable('${esc(sym)}','${esc(name.substring(0,60))}','bist')">
-      <td class="py-2.5 px-4 font-bold text-sm"><span style="font-size:.65rem;color:#475569">${i+1}.</span> ${sym}</td>
-      <td class="py-2.5 px-4 text-slate-400 text-xs max-w-[150px] truncate">${name}</td>
+    return `<tr class="sr-row" onclick="openAssetFromTable('${escJs(sym)}','${escJs(name.substring(0,60))}','bist','technical','${escJs(price)}','${escJs(chg)}')">
+      <td class="py-2.5 px-4 font-bold text-sm"><span style="font-size:.65rem;color:#475569">${i+1}.</span> ${escHtml(sym)}</td>
+      <td class="py-2.5 px-4 text-slate-400 text-xs max-w-[150px] truncate">${escHtml(name)}</td>
       <td class="py-2.5 px-4 text-right font-semibold text-sm">${price != null ? fmt(price,2) : '--'}</td>
       <td class="py-2.5 px-4 text-right text-sm ${chgC}">${chg != null ? `${chg>0?'+':''}${fmt(chg,2)}%` : '--'}</td>
       <td class="py-2.5 px-4 text-center">${rsiBadge}</td>
       <td class="py-2.5 px-4 text-right text-slate-400 text-xs">${vol != null ? fmtBig(vol) : '--'}</td>
       <td class="py-2.5 px-4 text-center text-xs">${macdBadge}</td>
       <td class="py-2.5 px-4 text-center">
-        <button onclick="event.stopPropagation();quickAddFromTable('${esc(sym)}','${esc(name.substring(0,60))}','bist')"
+        <button onclick="event.stopPropagation();quickAddFromTable('${escJs(sym)}','${escJs(name.substring(0,60))}','bist')"
           class="text-xs px-2 py-0.5 rounded" style="background:#1d4ed820;color:#60a5fa">+ Ekle</button>
       </td>
     </tr>`;
@@ -1951,16 +3057,16 @@ function renderTable(data, mkt) {
       ? `<td id="sr-chg-${sym}" class="py-2.5 px-4 text-right text-sm"></td>`
       : `<td class="py-2.5 px-4 text-right text-sm ${chgC}">${chg != null ? `${chg>0?'+':''}${fmt(chg,2)}%` : '--'}</td>`;
 
-    return `<tr class="sr-row" onclick="quickAddFromTable('${esc(sym)}','${esc(name.substring(0,60))}','${mkt}')">
-      <td class="py-2.5 px-4 font-bold text-sm">${sym}</td>
-      <td class="py-2.5 px-4 text-slate-400 text-xs max-w-[160px] truncate">${name}</td>
+    return `<tr class="sr-row" onclick="openAssetFromTable('${escJs(sym)}','${escJs(name.substring(0,60))}','${escJs(mkt)}','chart','${escJs(price)}','${escJs(chg)}')">
+      <td class="py-2.5 px-4 font-bold text-sm">${escHtml(sym)}</td>
+      <td class="py-2.5 px-4 text-slate-400 text-xs max-w-[160px] truncate">${escHtml(name)}</td>
       ${priceCell}
       ${chgCell}
       <td id="sr-pe-${sym}" class="py-2.5 px-4 text-right text-slate-400 text-xs">${pe != null ? fmt(pe,1) : '--'}</td>
       <td id="sr-vol-${sym}" class="py-2.5 px-4 text-right text-slate-400 text-xs">${vol != null ? fmtBig(vol) : '--'}</td>
       <td class="py-2.5 px-4 text-center">${rsiBadge || recBadge}</td>
       <td class="py-2.5 px-4 text-center">
-        <button onclick="event.stopPropagation();quickAddFromTable('${esc(sym)}','${esc(name.substring(0,60))}','${mkt}')"
+        <button onclick="event.stopPropagation();quickAddFromTable('${escJs(sym)}','${escJs(name.substring(0,60))}','${escJs(mkt)}')"
           class="text-xs px-2 py-0.5 rounded" style="background:#1d4ed820;color:#60a5fa">+ Ekle</button>
       </td>
     </tr>`;
@@ -1997,9 +3103,94 @@ function renderTable(data, mkt) {
   return html;
 }
 
+function renderCryptoScreenerTable(list, mkt, preset='top_gainers') {
+  if (!list.length) {
+    return `<div class="card p-4">
+      <div class="text-center py-4 text-slate-500">Kripto listesi alınamadı</div>
+    </div>`;
+  }
+  const sorted = [...list].sort((a, b) => {
+    if (preset === 'top_losers') return (a.change_pct ?? 999999) - (b.change_pct ?? 999999);
+    if (preset === 'high_volume') return (b.volume_24h ?? -1) - (a.volume_24h ?? -1);
+    if (preset === 'most_active') return Math.abs(b.change_pct ?? 0) - Math.abs(a.change_pct ?? 0);
+    return (b.change_pct ?? -999999) - (a.change_pct ?? -999999);
+  });
+  const presetLabel = {
+    top_gainers: 'En çok yükselenler',
+    top_losers: 'En çok düşenler',
+    high_volume: 'En yüksek hacim',
+    most_active: 'En hareketli',
+    all: 'Tüm coinler',
+  }[preset] || 'Kripto listesi';
+  const rows = sorted.map((c, index) => {
+    const chg = c.change_pct;
+    const chgC = chg == null ? 'neu' : chg > 0 ? 'pos' : chg < 0 ? 'neg' : 'neu';
+    const arrow = chg > 0 ? '▲' : chg < 0 ? '▼' : '';
+    const vol = c.volume_24h;
+    return `<tr class="sr-row" onclick="openCryptoFromScreener('${escJs(c.symbol)}','${escJs(mkt)}')">
+      <td class="py-2.5 px-4 font-bold text-sm"><span class="text-slate-600 text-xs">${index + 1}.</span> ${escHtml(c.symbol)}</td>
+      <td class="py-2.5 px-4 text-slate-400 text-xs max-w-[160px] truncate">${escHtml(c.name || c.symbol)}</td>
+      <td class="py-2.5 px-4 text-right font-semibold text-sm">${c.price != null ? fmtPrice(c.price, c.currency) : '--'}</td>
+      <td class="py-2.5 px-4 text-right text-sm font-semibold ${chgC}">${chg != null ? `${arrow} ${chg > 0 ? '+' : ''}${fmt(chg,2)}%` : '--'}</td>
+      <td class="py-2.5 px-4 text-right text-slate-400 text-xs">${c.high_24h != null ? fmtPrice(c.high_24h, c.currency) : '--'}</td>
+      <td class="py-2.5 px-4 text-right text-slate-400 text-xs">${c.low_24h != null ? fmtPrice(c.low_24h, c.currency) : '--'}</td>
+      <td class="py-2.5 px-4 text-right text-slate-400 text-xs">${vol != null ? fmtBig(vol) : '--'}</td>
+      <td class="py-2.5 px-4 text-center">
+        <button onclick="event.stopPropagation();quickAddFromTable('${escJs(c.symbol)}','${escJs(c.name || c.symbol)}','${escJs(mkt)}')"
+          class="text-xs px-2 py-0.5 rounded" style="background:#1d4ed820;color:#60a5fa">+ Ekle</button>
+      </td>
+    </tr>`;
+  }).join('');
+  return `<div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr style="border-bottom:1px solid #1e2d45;background:#060c16" class="text-xs text-slate-500">
+            <th class="py-2.5 px-4 text-left font-medium">Coin</th>
+            <th class="py-2.5 px-4 text-left font-medium">İsim</th>
+            <th class="py-2.5 px-4 text-right font-medium">Fiyat</th>
+            <th class="py-2.5 px-4 text-right font-medium">Günlük</th>
+            <th class="py-2.5 px-4 text-right font-medium">24s Yüksek</th>
+            <th class="py-2.5 px-4 text-right font-medium">24s Düşük</th>
+            <th class="py-2.5 px-4 text-right font-medium">Hacim</th>
+            <th class="py-2.5 px-4 text-center font-medium"></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="px-4 py-2 text-xs text-slate-600 border-t flex justify-between" style="border-color:#111e32">
+      <span>${sorted.length} coin</span>
+      <span>${presetLabel}</span>
+    </div>
+  </div>`;
+}
+
+function openCryptoFromScreener(symbol, mkt) {
+  showTab('crypto');
+  selectCrypto(symbol, mkt);
+}
+
 function quickAddFromTable(sym, name, mkt) {
   S.mkt = mkt;
   addAsset(sym, name);
+}
+
+function openAssetFromTable(sym, name, mkt, initialTab='chart', price=null, changePct=null) {
+  const toNum = v => {
+    if (v == null || v === '' || v === 'undefined') return null;
+    const n = Number(String(v).replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  };
+  openDetail({
+    symbol: sym,
+    name,
+    market: mkt,
+    price: toNum(price),
+    change_pct: toNum(changePct),
+    currency: currencyCodeForMarket(mkt),
+  });
+  if (initialTab && initialTab !== 'chart') showDTab(initialTab);
 }
 
 // ─────────────────────────────── PORTFÖY ──────────────────────────────
@@ -2088,17 +3279,27 @@ async function loadMyPortfolio() {
     return;
   }
 
+  renderMyPortfolioTable(tableEl, summaryEl, {});
+
   // Güncel fiyatları paralel çek (max 5 aynı anda)
   const CONC = 5;
   const priceMap = {};
   async function fetchPrice(pos) {
     try {
       let p = null;
+      let meta = {};
       if (pos.market === 'fund') {
         const r = await fetch(`/api/fund?symbol=${pos.symbol}`);
         if (r.ok) {
           const d = await r.json();
-          p = d?.fund?.price || null;
+          const f = d?.fund || {};
+          p = f?.price || null;
+          meta = {
+            name: f.name || pos.name,
+            full_name: f.name || pos.name,
+            fund_type: f.category,
+            category: f.category,
+          };
           // Bugünün fiyatı 0 ise recent_prices'tan son geçerli fiyatı al
           if (!p && Array.isArray(d?.recent_prices)) {
             const valid = d.recent_prices.find(x => x?.price > 0);
@@ -2113,6 +3314,10 @@ async function loadMyPortfolio() {
           let raw = d?.data ?? d;
           if (Array.isArray(raw)) raw = raw[0] ?? {};
           p = raw?.current_price ?? raw?.price ?? raw?.regularMarketPrice ?? null;
+          meta = {
+            name: raw?.longName || raw?.name || raw?.shortName || pos.name,
+            full_name: raw?.longName || raw?.name || raw?.shortName || pos.name,
+          };
         }
         // Fallback: technical endpoint always has current_price
         if (p == null) {
@@ -2120,35 +3325,48 @@ async function loadMyPortfolio() {
           if (r2.ok) { const d2 = await r2.json(); p = d2?.current_price ?? null; }
         }
       }
-      if (p != null) priceMap[pos.symbol + '_' + pos.market] = parseFloat(p);
+      if (p != null || Object.keys(meta).length) priceMap[pos.symbol + '_' + pos.market] = { price: p != null ? parseFloat(p) : null, ...meta };
     } catch(_) {}
   }
   for (let i = 0; i < pfPositions.length; i += CONC) {
     await Promise.all(pfPositions.slice(i, i+CONC).map(fetchPrice));
   }
 
+  renderMyPortfolioTable(tableEl, summaryEl, priceMap);
+}
+
+function renderMyPortfolioTable(tableEl, summaryEl, priceMap) {
   // Hesaplamalar
-  let totalCost = 0, totalValue = 0;
+  const totalsByCurrency = {};
   const rows = pfPositions.map(pos => {
     const key       = pos.symbol + '_' + pos.market;
-    const curPrice  = priceMap[key];
+    const meta      = priceMap[key] || {};
+    const curPrice  = typeof meta === 'number' ? meta : meta.price;
+    const displayAsset = { ...pos, ...meta };
+    const subTitle = assetSubtitle(displayAsset);
     const cost      = pos.quantity * pos.avg_price;
     const value     = curPrice != null ? pos.quantity * curPrice : null;
     const pnl       = value != null ? value - cost : null;
     const pnlPct    = pnl  != null ? (pnl / cost * 100) : null;
-    totalCost  += cost;
-    if (value != null) totalValue += value;
+    const curCode   = currencyCodeForMarket(pos.market);
+    if (!totalsByCurrency[curCode]) {
+      totalsByCurrency[curCode] = { cost: 0, value: 0, hasValue: false };
+    }
+    totalsByCurrency[curCode].cost += cost;
+    if (value != null) {
+      totalsByCurrency[curCode].value += value;
+      totalsByCurrency[curCode].hasValue = true;
+    }
 
     const pnlC = pnl == null ? '' : pnl > 0 ? 'color:#22c55e' : pnl < 0 ? 'color:#ef4444' : '';
     const mktLabel = { bist:'BIST', us:'ABD', fund:'Fon', crypto_tr:'Kripto₺', crypto_global:'KriptoUSD' };
-    const cur = pos.market === 'us' || pos.market === 'crypto_global' ? '$' :
-                pos.market === 'fund' || pos.market === 'bist' || pos.market === 'crypto_tr' ? '₺' : '';
+    const cur = currencySymbol(curCode);
 
     return `<tr class="hover:bg-slate-800/30 transition-colors">
       <td class="py-3 px-4">
         <div class="font-bold text-sm">${esc(pos.symbol)}</div>
-        <div class="text-xs text-slate-500 truncate max-w-[120px]">${esc(pos.name||pos.symbol)}</div>
-        <div class="text-xs mt-0.5" style="color:#4b5563">${mktLabel[pos.market]||pos.market}</div>
+        <div class="text-xs text-slate-500 truncate max-w-[180px]">${esc(subTitle || pos.symbol)}</div>
+        <div class="text-xs mt-0.5" style="color:#4b5563">${escHtml(mktLabel[pos.market]||pos.market)}</div>
       </td>
       <td class="py-3 px-4 text-right">
         <div class="font-semibold text-sm">${fmt(pos.quantity, pos.quantity % 1 === 0 ? 0 : 4)}</div>
@@ -2172,23 +3390,21 @@ async function loadMyPortfolio() {
         <div class="text-xs font-medium" style="${pnlC}">${pnlPct != null ? (pnlPct>=0?'+':'')+fmt(pnlPct,2)+'%' : ''}</div>
       </td>
       <td class="py-3 px-4 text-center">
-        <button onclick="openPfModal(pfPositions.find(p=>p.id==='${pos.id}'))"
+        <button onclick="openPfModal(pfPositions.find(p=>p.id==='${escJs(pos.id)}'))"
           class="text-xs px-2 py-1 rounded mr-1" style="background:#1d4ed820;color:#60a5fa">Düzenle</button>
-        <button onclick="deletePfPosition('${pos.id}')"
+        <button onclick="deletePfPosition('${escJs(pos.id)}')"
           class="text-xs px-2 py-1 rounded" style="background:#dc262620;color:#fca5a5">Sil</button>
       </td>
     </tr>`;
   }).join('');
 
-  const totalPnl    = totalValue > 0 ? totalValue - totalCost : null;
-  const totalPnlPct = totalPnl  != null ? (totalPnl / totalCost * 100) : null;
-  const pnlColor    = !totalPnl ? '#94a3b8' : totalPnl > 0 ? '#22c55e' : '#ef4444';
+  const pnlColor = portfolioPnlColor(totalsByCurrency);
 
   summaryEl.innerHTML = [
-    ['💰 Toplam Maliyet',   `₺${fmt(totalCost,0)}`,                        ''],
-    ['📊 Güncel Değer',     totalValue > 0 ? `₺${fmt(totalValue,0)}` : '--',''],
-    ['📈 Kar / Zarar',      totalPnl != null ? `${totalPnl>=0?'+':''}₺${fmt(Math.abs(totalPnl),0)}` : '--', `style="color:${pnlColor}"`],
-    ['%  Getiri',           totalPnlPct != null ? `${totalPnlPct>=0?'+':''}${fmt(totalPnlPct,2)}%` : '--', `style="color:${pnlColor}"`],
+    ['💰 Toplam Maliyet',   formatCurrencyTotals(totalsByCurrency, 'cost'), ''],
+    ['📊 Güncel Değer',     formatCurrencyTotals(totalsByCurrency, 'value', true), ''],
+    ['📈 Kar / Zarar',      formatPnlTotals(totalsByCurrency), `style="color:${pnlColor}"`],
+    ['%  Getiri',           formatPctTotals(totalsByCurrency), `style="color:${pnlColor}"`],
   ].map(([label, val, style]) => `
     <div class="card p-4">
       <div class="text-xs text-slate-500 mb-1">${label}</div>
@@ -2299,6 +3515,62 @@ function fmtPrice(p, cur) {
   const sym = { TRY:'₺', USD:'$', EUR:'€' };
   return cur === 'USD' ? `$${f}` : `${f} ${sym[cur] || cur || ''}`;
 }
+function assetSubtitle(a) {
+  if (!a) return '';
+  const name = a.full_name || a.name || '';
+  const category = a.fund_type || a.category || '';
+  if (a.market === 'fund') {
+    const parts = [name, category].filter(Boolean);
+    return parts.length ? parts.join(' · ') : a.symbol;
+  }
+  if (a.market === 'bist' || a.market === 'us') {
+    return name || a.symbol;
+  }
+  return name || a.symbol || '';
+}
+function currencyCodeForMarket(market) {
+  return market === 'us' || market === 'crypto_global' ? 'USD' : 'TRY';
+}
+function currencySymbol(code) {
+  return { TRY:'₺', USD:'$', EUR:'€' }[code] || code || '';
+}
+function formatMoney(code, value) {
+  return `${currencySymbol(code)}${fmt(value, 0)}`;
+}
+function formatCurrencyTotals(totals, key, requireValue=false) {
+  const rows = Object.entries(totals)
+    .filter(([, t]) => !requireValue || t.hasValue)
+    .map(([code, t]) => formatMoney(code, t[key]));
+  return rows.length ? rows.join('<br>') : '--';
+}
+function formatPnlTotals(totals) {
+  const rows = Object.entries(totals)
+    .filter(([, t]) => t.hasValue)
+    .map(([code, t]) => {
+      const pnl = t.value - t.cost;
+      return `${pnl >= 0 ? '+' : '-'}${formatMoney(code, Math.abs(pnl))}`;
+    });
+  return rows.length ? rows.join('<br>') : '--';
+}
+function formatPctTotals(totals) {
+  const rows = Object.entries(totals)
+    .filter(([, t]) => t.hasValue && t.cost > 0)
+    .map(([code, t]) => {
+      const pctVal = (t.value - t.cost) / t.cost * 100;
+      const label = Object.keys(totals).length > 1 ? `${code} ` : '';
+      return `${label}${pctVal >= 0 ? '+' : ''}${fmt(pctVal, 2)}%`;
+    });
+  return rows.length ? rows.join('<br>') : '--';
+}
+function portfolioPnlColor(totals) {
+  const pnlValues = Object.values(totals)
+    .filter(t => t.hasValue)
+    .map(t => t.value - t.cost);
+  if (!pnlValues.length) return '#94a3b8';
+  if (pnlValues.every(v => v >= 0)) return '#22c55e';
+  if (pnlValues.every(v => v <= 0)) return '#ef4444';
+  return '#fbbf24';
+}
 function fmtBig(n) {
   if (!n) return '--';
   if (n >= 1e12) return `${(n/1e12).toFixed(2)}T`;
@@ -2308,7 +3580,24 @@ function fmtBig(n) {
   return n.toFixed(0);
 }
 function pad(n) { return n.toString().padStart(2,'0'); }
-function esc(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'\\"'); }
+function escJs(s) {
+  return String(s ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, '')
+    .replace(/\n/g, '\\n');
+}
+function escHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function esc(s) { return escHtml(s); }
+function safeUrl(url) { return (url && /^https?:\/\//i.test(url)) ? url : '#'; }
 function mktBadge(m) {
   return {
     bist:         { label:'BIST',    cls:'badge-bist' },
