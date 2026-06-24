@@ -4,8 +4,8 @@
     "symbol": "ATATP",
     "market": "bist",
     "name": "yazılım",
-    "quantity": 3592.0,
-    "avg_price": 234.56,
+    "quantity": 5092.0,
+    "avg_price": 227.83,
     "purchase_date": null
   },
   {
@@ -22,8 +22,8 @@
     "symbol": "TLY",
     "market": "fund",
     "name": "TLY",
-    "quantity": 229.0,
-    "avg_price": 5258.91,
+    "quantity": 288.0,
+    "avg_price": 5526.89,
     "purchase_date": null
   },
   {
@@ -31,17 +31,8 @@
     "symbol": "PBR",
     "market": "fund",
     "name": "PBR",
-    "quantity": 239740.0,
-    "avg_price": 4.17,
-    "purchase_date": null
-  },
-  {
-    "id": "15cacb19-b68a-4880-b9f8-7c31fd8cabdd",
-    "symbol": "DFI",
-    "market": "fund",
-    "name": "DFI",
-    "quantity": 270166.0,
-    "avg_price": 3.81,
+    "quantity": 320326.0,
+    "avg_price": 4.37,
     "purchase_date": null
   }
 ]

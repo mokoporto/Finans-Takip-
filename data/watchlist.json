@@ -12,12 +12,6 @@
     "exchange": "btcturk"
   },
   {
-    "symbol": "DFI",
-    "market": "fund",
-    "name": "DFI",
-    "exchange": "btcturk"
-  },
-  {
     "symbol": "GTA",
     "market": "fund",
     "name": "GTA",
