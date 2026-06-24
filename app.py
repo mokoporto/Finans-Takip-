@@ -1456,6 +1456,33 @@ def _shift_months(d: date, months: int) -> date:
     return date(y, m, min(d.day, last))
 
 
+@app.get("/api/detect-market")
+async def detect_market(symbol: str):
+    sym = symbol.upper().strip()
+    if not sym:
+        return {"market": "bist", "source": "default"}
+
+    for item in load_portfolio():
+        if item.get("symbol", "").upper() == sym:
+            return {"market": item["market"], "source": "portfolio"}
+
+    for item in load_watchlist():
+        if item.get("symbol", "").upper() == sym:
+            return {"market": item["market"], "source": "watchlist"}
+
+    # Heuristic: Turkish fund codes are exactly 3 alpha chars
+    if len(sym) == 3 and sym.isalpha():
+        return {"market": "fund", "source": "heuristic"}
+    # BIST stocks are typically 4-6 chars; US tickers are 1-5 but often shorter
+    if len(sym) >= 5:
+        return {"market": "bist", "source": "heuristic"}
+    if len(sym) == 4:
+        # Common US 4-letter tickers vs BIST 4-letter — default bist, caller can override
+        return {"market": "bist", "source": "heuristic"}
+
+    return {"market": "us", "source": "heuristic"}
+
+
 @app.get("/api/what-if")
 async def what_if(symbol: str, market: str, amount: float, months: int = Query(1, ge=1, le=12)):
     sym = symbol.upper().strip()

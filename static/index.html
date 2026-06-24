@@ -189,7 +189,7 @@ input::placeholder { color: #334155; }
         </div>
         <div>
           <label class="block text-xs text-slate-500 mb-1.5 font-medium">Sembol / Fon Kodu</label>
-          <input id="wi-symbol" type="text" placeholder="Örn: THYAO, PBR, AAPL" oninput="this.value=this.value.toUpperCase()">
+          <input id="wi-symbol" type="text" placeholder="Örn: THYAO, PBR, AAPL" oninput="this.value=this.value.toUpperCase();wiDetectMarket(this.value)">
         </div>
         <div>
           <label class="block text-xs text-slate-500 mb-1.5 font-medium">Para Miktarı</label>
@@ -740,6 +740,20 @@ function renderSummary() {
 }
 
 // ─────────────────────────────── WHAT IF ──────────────────────────────
+let _wiDetectTimer = null;
+function wiDetectMarket(val) {
+  clearTimeout(_wiDetectTimer);
+  if (val.length < 2) return;
+  _wiDetectTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`/api/detect-market?symbol=${encodeURIComponent(val)}`);
+      if (!r.ok) return;
+      const d = await r.json();
+      document.getElementById('wi-market').value = d.market;
+    } catch (_) {}
+  }, 400);
+}
+
 async function runWhatIf() {
   const out = document.getElementById('whatif-out');
   const market = document.getElementById('wi-market').value;
