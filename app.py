@@ -680,7 +680,7 @@ def _quote_from_history(symbol: str, market: str, hist: dict) -> dict:
         "change_percent": change,
         "change_pct": change,
         "volume": latest.get("volume"),
-        "price_time": str(latest.get("date", ""))[:10],
+        "price_time": f"{str(latest.get('date', ''))[:10]} kapanış",
         "source": "history_fallback",
     }
 
@@ -808,12 +808,21 @@ def _extract_price(w: dict, results: dict) -> dict:
             full_name = raw_name
             if str(full_name or "").upper() == str(sym).upper():
                 full_name = profile.get("description") or profile.get("sector") or raw_name
-            # Son fiyat saati: tarihsel verinin son barının tarihi + fetch saati
-            import datetime as _dt
+            import datetime as _dt, zoneinfo as _zi
+            _tr_tz = _zi.ZoneInfo("Europe/Istanbul")
+            _now_tr = _dt.datetime.now(_tr_tz)
             hist_bars = results.get(f"hist_{sym}", {}).get("data", [])
-            last_bar_date = hist_bars[-1].get("date", "") if hist_bars else ""
-            fetch_time = _dt.datetime.now().strftime("%H:%M")
-            price_time = f"{last_bar_date[:10]} {fetch_time}" if last_bar_date else fetch_time
+            last_bar_date = (hist_bars[-1].get("date", "") if hist_bars else "")[:10]
+            today_tr = _now_tr.strftime("%Y-%m-%d")
+            fetch_time_tr = _now_tr.strftime("%H:%M")
+            if last_bar_date and last_bar_date == today_tr:
+                # Bugünün kapanış fiyatı: sadece saat yeter
+                price_time = fetch_time_tr
+            elif last_bar_date and last_bar_date < today_tr:
+                # Önceki kapanış fiyatı: tarihi göster
+                price_time = f"{last_bar_date} kapanış"
+            else:
+                price_time = fetch_time_tr
             return {
                 "price": price,
                 "change_pct": chg,
